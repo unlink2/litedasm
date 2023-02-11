@@ -4,6 +4,7 @@ pub mod a6502;
 pub enum Pattern {
     Exact(u8),
     And(u8),
+    List(PatternList),
     Any,
 }
 
@@ -12,6 +13,7 @@ impl Pattern {
         match self {
             Self::Exact(b) => *b == byte,
             Self::And(b) => *b & byte != 0,
+            Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(byte)),
             Self::Any => true,
         }
     }
