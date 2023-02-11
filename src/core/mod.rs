@@ -1,6 +1,3 @@
-pub mod arch;
 pub mod config;
+pub mod dasm;
 pub mod error;
-pub mod symbols;
-
-pub type Address = u64;
