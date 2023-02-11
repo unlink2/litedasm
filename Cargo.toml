@@ -10,8 +10,9 @@ readme = "README.md"
 repository = "https://github.com/unlink2/rust-template"
 
 [features]
-default = ["cli"]
+default = ["tui"]
 cli = ["dep:clap", "dep:clap_complete"]
+tui = ["cli"]
 
 [dependencies]
 anyhow = "1.0.68"
