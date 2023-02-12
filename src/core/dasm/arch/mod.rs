@@ -5,7 +5,7 @@ use crate::prelude::{Error, FdResult};
 
 use super::{
     symbols::{Symbol, SymbolKey, SymbolKind, SymbolList},
-    Address,
+    Address, DataType, ValueType,
 };
 
 /// This callback is called for every matched pattern with the final
@@ -48,6 +48,8 @@ impl Pattern {
 
 type PatternList = Vec<Pattern>;
 
+impl ValueType {}
+
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
@@ -85,8 +87,12 @@ impl Transform {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
         // assuming the pattern is defined correctly!
-        let data = Self::get_data(data, self.offset(), self.data_len(arch))
-            .ok_or(Error::TransformOutOfData(ctx.org))?;
+        let data = Self::get_data(
+            data,
+            self.offset(),
+            self.data_type(arch.addr_type).data_len(),
+        )
+        .ok_or(Error::TransformOutOfData(ctx.org))?;
 
         match self {
             Transform::AbsU8Hex(_) => todo!(),
@@ -99,58 +105,32 @@ impl Transform {
             Transform::DefSymU32(s, _) => todo!(),
             Transform::DefSymU64(s, _) => todo!(),
             Transform::DefSymAddress(s, _) => ctx.def_sym(
-                SymbolKey::Address(
-                    Self::to_addr(data, arch).ok_or(Error::TransformOutOfData(ctx.org))?,
-                ),
+                Self::to_addr(data, arch).ok_or(Error::TransformOutOfData(ctx.org))?,
                 Symbol::new(s.clone(), SymbolKind::Label),
             ),
             Transform::Skip => (),
         }
 
-        Ok(self.data_len(arch))
+        Ok(self.data_type(arch.addr_type).data_len())
     }
 
-    fn to_addr(data: &[u8], arch: &ArchDef) -> Option<Address> {
-        if arch.endianess == Endianess::Little {
-            Self::to_addr_le(data, arch)
-        } else {
-            Self::to_addr_be(data, arch)
-        }
+    fn to_addr(data: &[u8], arch: &ArchDef) -> Option<ValueType> {
+        arch.endianess.transform(data, arch.addr_type)
     }
 
-    fn to_addr_be(data: &[u8], arch: &ArchDef) -> Option<Address> {
-        Some(match arch.addr_size {
-            1 => u8::from_be_bytes(data.try_into().ok()?) as Address,
-            2 => u16::from_be_bytes(data.try_into().ok()?) as Address,
-            4 => u32::from_be_bytes(data.try_into().ok()?) as Address,
-            8 => u64::from_be_bytes(data.try_into().ok()?) as Address,
-            _ => return None,
-        })
-    }
-
-    fn to_addr_le(data: &[u8], arch: &ArchDef) -> Option<Address> {
-        Some(match arch.addr_size {
-            1 => u8::from_le_bytes(data.try_into().ok()?) as Address,
-            2 => u16::from_le_bytes(data.try_into().ok()?) as Address,
-            4 => u32::from_le_bytes(data.try_into().ok()?) as Address,
-            8 => u64::from_le_bytes(data.try_into().ok()?) as Address,
-            _ => return None,
-        })
-    }
-
-    fn data_len(&self, arch: &ArchDef) -> usize {
+    fn data_type(&self, addr_type: DataType) -> DataType {
         match self {
-            Transform::AbsU8Hex(_) => 1,
-            Transform::AbsU16Hex(_) => 2,
-            Transform::AbsU32Hex(_) => 4,
-            Transform::AbsU64Hex(_) => 8,
-            Transform::String(_) => 0,
-            Transform::DefSymU8(_, _) => 1,
-            Transform::DefSymU16(_, _) => 2,
-            Transform::DefSymU32(_, _) => 4,
-            Transform::DefSymU64(_, _) => 8,
-            Transform::DefSymAddress(_, _) => arch.addr_size,
-            Transform::Skip => 0,
+            Transform::AbsU8Hex(_) => DataType::U8,
+            Transform::AbsU16Hex(_) => DataType::U16,
+            Transform::AbsU32Hex(_) => DataType::U32,
+            Transform::AbsU64Hex(_) => DataType::U64,
+            Transform::String(_) => DataType::None,
+            Transform::DefSymU8(_, _) => DataType::U8,
+            Transform::DefSymU16(_, _) => DataType::U16,
+            Transform::DefSymU32(_, _) => DataType::U32,
+            Transform::DefSymU64(_, _) => DataType::U64,
+            Transform::DefSymAddress(_, _) => addr_type,
+            Transform::Skip => DataType::None,
         }
     }
 
@@ -200,6 +180,38 @@ pub enum Endianess {
     Big,
 }
 
+impl Endianess {
+    pub fn transform(&self, data: &[u8], dt: DataType) -> Option<ValueType> {
+        if self == &Self::Little {
+            Self::transform_le(data, dt)
+        } else {
+            Self::transform_be(data, dt)
+        }
+    }
+
+    fn transform_le(data: &[u8], dt: DataType) -> Option<ValueType> {
+        Some(match dt {
+            DataType::U8 => ValueType::U8(u8::from_le_bytes(data.try_into().ok()?)),
+            DataType::U16 => ValueType::U16(u16::from_le_bytes(data.try_into().ok()?)),
+            DataType::U32 => ValueType::U32(u32::from_le_bytes(data.try_into().ok()?)),
+            DataType::U64 => ValueType::U64(u64::from_le_bytes(data.try_into().ok()?)),
+            DataType::None => ValueType::None,
+            _ => todo!(),
+        })
+    }
+
+    fn transform_be(data: &[u8], dt: DataType) -> Option<ValueType> {
+        Some(match dt {
+            DataType::U8 => ValueType::U8(u8::from_be_bytes(data.try_into().ok()?)),
+            DataType::U16 => ValueType::U16(u16::from_be_bytes(data.try_into().ok()?)),
+            DataType::U32 => ValueType::U32(u32::from_be_bytes(data.try_into().ok()?)),
+            DataType::U64 => ValueType::U64(u64::from_be_bytes(data.try_into().ok()?)),
+            DataType::None => ValueType::None,
+            _ => todo!(),
+        })
+    }
+}
+
 /// The context describes the runtime information of a single parser operation
 /// it contains the current address as well as a list of known symbols
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -240,7 +252,7 @@ pub struct ArchDef {
     patterns: MatcherList,
     endianess: Endianess,
     // size of address in bytes for the given architecture
-    addr_size: usize,
+    addr_type: DataType,
 }
 
 impl ArchDef {

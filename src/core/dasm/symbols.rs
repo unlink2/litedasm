@@ -3,25 +3,12 @@ use std::collections::BTreeMap;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use super::Address;
+use super::ValueType;
 
 /// combination of value and size for a symbol
 /// Using this makes it possible to define symbols with similar
 /// names but different "data types"
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone)]
-pub enum SymbolKey {
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I32(i32),
-    I64(i64),
-    Address(Address),
-    #[default]
-    None,
-}
+pub type SymbolKey = ValueType;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Copy, Clone)]
