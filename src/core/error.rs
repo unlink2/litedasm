@@ -10,6 +10,8 @@ pub enum Error {
     Unknown,
     #[error("Transform out of data")]
     TransformOutOfData(Address),
+    #[error("Unable to match any pattern")]
+    NoMatch,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

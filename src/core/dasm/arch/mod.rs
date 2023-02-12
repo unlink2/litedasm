@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -169,6 +171,23 @@ pub struct Matcher {
     transforms: Vec<Transform>,
 }
 
+impl Matcher {
+    pub fn is_match(&self, data: &[u8]) -> bool {
+        todo!()
+    }
+
+    pub fn transform<T>(
+        &self,
+        mut f: impl DisasCallback<T>,
+        data: &[u8],
+        arch: &ArchDef,
+        ctx: &mut Context,
+        u: T,
+    ) -> FdResult<usize> {
+        todo!()
+    }
+}
+
 type MatcherList = Vec<Matcher>;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -223,6 +242,7 @@ pub struct Context {
     // the arch's default
     patterns: MatcherList,
     org: Address,
+    offset: Address,
     syms: SymbolList,
 }
 
@@ -234,7 +254,29 @@ impl Context {
         arch: &ArchDef,
         u: T,
     ) -> FdResult<()> {
+        // TODO match both pattern lists here
         todo!()
+    }
+
+    fn match_patterns<'a, T>(
+        &mut self,
+        f: impl DisasCallback<T>,
+        data: &'a [u8],
+        arch: &ArchDef,
+        u: T,
+        patterns: &MatcherList,
+    ) -> FdResult<&'a [u8]> {
+        for pattern in patterns.iter() {
+            if pattern.is_match(data) {
+                let res = pattern.transform(f, data, arch, self, u)?;
+                return Ok(&data[res..]);
+            }
+        }
+        Err(Error::NoMatch)
+    }
+
+    pub fn address(&self) -> Address {
+        self.org + self.offset
     }
 
     pub fn def_sym(&mut self, key: SymbolKey, sym: Symbol) {
@@ -266,6 +308,6 @@ impl ArchDef {
         ctx: &mut Context,
         u: T,
     ) -> FdResult<()> {
-        Ok(())
+        ctx.disas(f, data, self, u)
     }
 }
