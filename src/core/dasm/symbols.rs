@@ -34,8 +34,14 @@ pub enum SymbolKind {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Symbol {
-    name: Option<String>,
+    name: String,
     kind: SymbolKind,
+}
+
+impl Symbol {
+    pub fn new(name: String, kind: SymbolKind) -> Self {
+        Self { name, kind }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
