@@ -11,7 +11,8 @@ repository = "https://github.com/unlink2/rust-template"
 
 [features]
 default = ["tui"]
-cli = ["dep:clap", "dep:clap_complete", "dep:serde", "dep:serde_json"]
+serde = ["dep:serde", "dep:serde_json"]
+cli = ["dep:clap", "dep:clap_complete", "serde"]
 tui = ["cli"]
 
 [dependencies]
