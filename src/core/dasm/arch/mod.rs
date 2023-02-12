@@ -162,13 +162,15 @@ impl Transform {
     }
 }
 
+pub type TransformList = Vec<Transform>;
+
 /// A matcher matches the pattern list and if *all* patterns match
 /// it will apply the formatter
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Matcher {
     patterns: Vec<PatternList>,
-    transforms: Vec<Transform>,
+    transforms: TransformList,
 }
 
 impl Matcher {
@@ -241,6 +243,13 @@ pub struct Context {
     // the archdef's and will therefore override
     // the arch's default
     patterns: MatcherList,
+    // TODO context should also be able to overwrite patterns at certain
+    // addresses with another transform e.g. to interprete the data as bytes
+    // instead of instructions
+    // override named transforms from the architecture
+    named_transforms: BTreeMap<String, TransformList>,
+    // where the named transforms should be applied
+    transform_override: BTreeMap<Address, String>,
     org: Address,
     offset: Address,
     syms: SymbolList,
@@ -292,6 +301,10 @@ impl Context {
 #[derive(Default)]
 pub struct ArchDef {
     patterns: MatcherList,
+    // a list of named transforms. they can be referenced by the
+    // context at certain addresses to override the default behaviour
+    named_transforms: BTreeMap<String, TransformList>,
+
     endianess: Endianess,
     // size of address in bytes for the given architecture
     addr_type: DataType,
