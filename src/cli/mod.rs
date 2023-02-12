@@ -13,7 +13,7 @@ pub fn init() -> FdResult<()> {
     // TODO remove test code
     let mut stdout = std::io::stdout().lock();
     let mut ctx = Context::default();
-    ctx.disas(default_callback, &[0], &mut stdout)
+    ctx.disas(|a, b, c| default_callback(a, b, c), &[0], &mut stdout)
         .expect("Test code failed");
 
     Ok(())

@@ -1,3 +1,5 @@
+#![feature(trait_alias)]
+
 #[cfg(feature = "cli")]
 pub mod cli;
 pub mod core;

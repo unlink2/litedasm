@@ -8,7 +8,10 @@ use super::{
     Address,
 };
 
-type DisasCallback<T> = fn(text: &str, ctx: &Context, u: T) -> FdResult<()>;
+/// This callback is called for every matched pattern with the final
+/// transformed result. Each context may also pass along a user-data field <T>
+/// which can be used to make the callback work
+pub trait DisasCallback<T> = FnMut(&str, &Context, T) -> FdResult<()>;
 
 pub fn default_callback(text: &str, ctx: &Context, usr: &mut dyn std::io::Write) -> FdResult<()> {
     todo!()
@@ -68,7 +71,7 @@ pub enum Transform {
 impl Transform {
     pub fn apply<T>(
         &self,
-        f: DisasCallback<T>,
+        f: impl DisasCallback<T>,
         data: &[u8],
         ctx: &mut Context,
         u: T,
@@ -105,7 +108,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn disas<T>(&mut self, f: DisasCallback<T>, data: &[u8], u: T) -> FdResult<()> {
+    pub fn disas<T>(&mut self, f: impl DisasCallback<T>, data: &[u8], u: T) -> FdResult<()> {
         todo!()
     }
 
@@ -133,7 +136,7 @@ impl ArchDef {
     /// and it will modify the current context
     pub fn disas<T>(
         &self,
-        f: DisasCallback<T>,
+        f: impl DisasCallback<T>,
         data: &[u8],
         ctx: &mut Context,
         u: T,
