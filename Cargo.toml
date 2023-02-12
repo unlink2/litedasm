@@ -11,7 +11,7 @@ repository = "https://github.com/unlink2/rust-template"
 
 [features]
 default = ["tui"]
-cli = ["dep:clap", "dep:clap_complete"]
+cli = ["dep:clap", "dep:clap_complete", "dep:serde", "dep:serde_json"]
 tui = ["cli"]
 
 [dependencies]
@@ -19,4 +19,6 @@ anyhow = "1.0.68"
 clap = { version = "4.0.32", features = ["derive"], optional = true }
 clap_complete = { version = "4.0.7", optional = true }
 lazy_static = "1.4.0"
+serde = { version = "1.0.152", features = ["derive"], optional = true }
+serde_json = { version = "1.0.93", optional = true }
 thiserror = "1.0.38"

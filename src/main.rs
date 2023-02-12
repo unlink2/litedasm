@@ -2,12 +2,8 @@
 fn main() {}
 
 #[cfg(feature = "cli")]
-fn main() {
-    use fasdasm::{core::config::generate_completion, core::config::CFG};
-    if let Some(shell) = CFG.completions {
-        generate_completion(shell);
-        std::process::exit(0);
-    }
+fn main() -> fasdasm::prelude::FdResult<()> {
+    fasdasm::cli::init()
 }
 
 #[cfg(test)]
