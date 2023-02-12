@@ -1,12 +1,19 @@
 use std::collections::BTreeMap;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use super::Address;
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default)]
 pub struct Symbol {
     address: Address,
     name: Option<String>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default)]
 pub struct SymbolList {
     map: BTreeMap<Address, Symbol>,
 }
