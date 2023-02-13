@@ -32,16 +32,19 @@ pub enum Pattern {
     And(u8),
     List(PatternList),
     Any,
+    // Match an address range from 0..1
+    Address(Address, Address),
     #[default]
     Never,
 }
 
 impl Pattern {
-    pub fn is_match(&self, byte: u8) -> bool {
+    pub fn is_match(&self, arch: &ArchDef, ctx: &mut Context, byte: u8) -> bool {
         match self {
             Self::Exact(b) => *b == byte,
             Self::And(b) => *b & byte != 0,
-            Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(byte)),
+            Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(arch, ctx, byte)),
+            Self::Address(start, end) => ctx.address() >= *start && ctx.address() < *end,
             Self::Any => true,
             Self::Never => false,
         }
@@ -166,18 +169,25 @@ pub type TransformList = Vec<Transform>;
 
 /// A matcher matches the pattern list and if *all* patterns match
 /// it will apply the formatter
+/// the transforms are referened by the transform string
+/// which can be applied when the patterns match
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Matcher {
+    // a list of patterns that have to match for this matcher to be
+    // a full match
     patterns: Vec<PatternList>,
-    transforms: TransformList,
+    // the name of the transform to apply in case of a match
+    transforms: String,
 }
 
 impl Matcher {
-    pub fn is_match(&self, data: &[u8]) -> bool {
+    /// check if this matcher matches the pattern specified
+    pub fn is_match(&self, arch: &ArchDef, ctx: &mut Context, data: &[u8]) -> bool {
         todo!()
     }
 
+    /// apply the apropriate transform for this matcher
     pub fn transform<T>(
         &self,
         mut f: impl DisasCallback<T>,
@@ -247,9 +257,8 @@ pub struct Context {
     // addresses with another transform e.g. to interprete the data as bytes
     // instead of instructions
     // override named transforms from the architecture
-    named_transforms: BTreeMap<String, TransformList>,
-    // where the named transforms should be applied
-    transform_override: BTreeMap<Address, String>,
+    transforms: BTreeMap<String, TransformList>,
+
     org: Address,
     offset: Address,
     syms: SymbolList,
@@ -276,7 +285,7 @@ impl Context {
         patterns: &MatcherList,
     ) -> FdResult<&'a [u8]> {
         for pattern in patterns.iter() {
-            if pattern.is_match(data) {
+            if pattern.is_match(arch, self, data) {
                 let res = pattern.transform(f, data, arch, self, u)?;
                 return Ok(&data[res..]);
             }
@@ -295,6 +304,11 @@ impl Context {
     pub fn get_sym(&self, key: SymbolKey) -> Option<&Symbol> {
         self.syms.get_symbol(key)
     }
+
+    // obtain the transform list for all possible matches
+    pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
+        todo!()
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -302,8 +316,8 @@ impl Context {
 pub struct ArchDef {
     patterns: MatcherList,
     // a list of named transforms. they can be referenced by the
-    // context at certain addresses to override the default behaviour
-    named_transforms: BTreeMap<String, TransformList>,
+    // context based on a match result
+    transforms: BTreeMap<String, TransformList>,
 
     endianess: Endianess,
     // size of address in bytes for the given architecture
@@ -322,5 +336,9 @@ impl ArchDef {
         u: T,
     ) -> FdResult<()> {
         ctx.disas(f, data, self, u)
+    }
+
+    pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
+        todo!()
     }
 }
