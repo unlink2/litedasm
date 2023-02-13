@@ -12,6 +12,8 @@ pub enum Error {
     TransformOutOfData(Address),
     #[error("Unable to match any pattern")]
     NoMatch,
+    #[error("Transform was not found")]
+    TransformNotFound(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

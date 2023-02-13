@@ -13,14 +13,9 @@ use super::{
 /// This callback is called for every matched pattern with the final
 /// transformed result. Each context may also pass along a user-data field <T>
 /// which can be used to make the callback work
-pub trait DisasCallback<T> = FnMut(&str, &ArchDef, &mut Context, T) -> FdResult<()>;
+pub trait DisasCallback = FnMut(&str, &Arch, &mut Context) -> FdResult<()>;
 
-pub fn default_callback(
-    text: &str,
-    arch: &ArchDef,
-    ctx: &mut Context,
-    usr: &mut dyn std::io::Write,
-) -> FdResult<()> {
+pub fn default_callback(text: &str, arch: &Arch, ctx: &mut Context) -> FdResult<()> {
     todo!()
 }
 
@@ -39,7 +34,7 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn is_match(&self, arch: &ArchDef, ctx: &mut Context, byte: u8) -> bool {
+    pub fn is_match(&self, arch: &Arch, ctx: &mut Context, byte: u8) -> bool {
         match self {
             Self::Exact(b) => *b == byte,
             Self::And(b) => *b & byte != 0,
@@ -81,13 +76,12 @@ pub enum Transform {
 }
 
 impl Transform {
-    pub fn apply<T>(
+    pub fn apply(
         &self,
-        mut f: impl DisasCallback<T>,
+        f: &mut dyn DisasCallback,
         data: &[u8],
-        arch: &ArchDef,
+        arch: &Arch,
         ctx: &mut Context,
-        u: T,
     ) -> FdResult<usize> {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
@@ -104,7 +98,7 @@ impl Transform {
             Transform::AbsU16Hex(_) => todo!(),
             Transform::AbsU32Hex(_) => todo!(),
             Transform::AbsU64Hex(_) => todo!(),
-            Transform::String(s) => f(s, arch, ctx, u)?,
+            Transform::String(s) => f(s, arch, ctx)?,
             Transform::DefSymU8(s, _, scope) => todo!(),
             Transform::DefSymU16(s, _, scope) => todo!(),
             Transform::DefSymU32(s, _, scope) => todo!(),
@@ -119,7 +113,7 @@ impl Transform {
         Ok(self.data_type(arch.addr_type).data_len())
     }
 
-    fn to_addr(data: &[u8], arch: &ArchDef) -> Option<ValueType> {
+    fn to_addr(data: &[u8], arch: &Arch) -> Option<ValueType> {
         arch.endianess.transform(data, arch.addr_type)
     }
 
@@ -183,20 +177,27 @@ pub struct Matcher {
 
 impl Matcher {
     /// check if this matcher matches the pattern specified
-    pub fn is_match(&self, arch: &ArchDef, ctx: &mut Context, data: &[u8]) -> bool {
+    pub fn is_match(&self, arch: &Arch, ctx: &mut Context, data: &[u8]) -> bool {
         todo!()
     }
 
     /// apply the apropriate transform for this matcher
-    pub fn transform<T>(
+    pub fn transform(
         &self,
-        mut f: impl DisasCallback<T>,
+        mut f: impl DisasCallback,
         data: &[u8],
-        arch: &ArchDef,
+        arch: &Arch,
         ctx: &mut Context,
-        u: T,
     ) -> FdResult<usize> {
-        todo!()
+        if let Some(tl) = arch.get_transform(&self.transforms) {
+            let mut total = 0;
+            for t in tl.iter() {
+                total += t.apply(&mut f, &data[total..], arch, ctx)?;
+            }
+            Ok(total)
+        } else {
+            Err(Error::TransformNotFound(self.transforms.clone()))
+        }
     }
 }
 
@@ -248,49 +249,18 @@ impl Endianess {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Context {
-    // the context may provide additional matchers to apply
-    // the context's matchers are executed before
-    // the archdef's and will therefore override
-    // the arch's default
-    patterns: MatcherList,
-    // TODO context should also be able to overwrite patterns at certain
-    // addresses with another transform e.g. to interprete the data as bytes
-    // instead of instructions
-    // override named transforms from the architecture
-    transforms: BTreeMap<String, TransformList>,
-
     org: Address,
     offset: Address,
     syms: SymbolList,
 }
 
 impl Context {
-    pub fn disas<T>(
-        &mut self,
-        f: impl DisasCallback<T>,
-        data: &[u8],
-        arch: &ArchDef,
-        u: T,
-    ) -> FdResult<()> {
-        // TODO match both pattern lists here
-        todo!()
-    }
-
-    fn match_patterns<'a, T>(
-        &mut self,
-        f: impl DisasCallback<T>,
-        data: &'a [u8],
-        arch: &ArchDef,
-        u: T,
-        patterns: &MatcherList,
-    ) -> FdResult<&'a [u8]> {
-        for pattern in patterns.iter() {
-            if pattern.is_match(arch, self, data) {
-                let res = pattern.transform(f, data, arch, self, u)?;
-                return Ok(&data[res..]);
-            }
+    pub fn new(org: Address, syms: SymbolList) -> Self {
+        Self {
+            org,
+            syms,
+            offset: 0,
         }
-        Err(Error::NoMatch)
     }
 
     pub fn address(&self) -> Address {
@@ -304,16 +274,12 @@ impl Context {
     pub fn get_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
         self.syms.get_symbol(key, self.address())
     }
-
-    // obtain the transform list for all possible matches
-    pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
-        todo!()
-    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default)]
-pub struct ArchDef {
+pub struct Arch {
+    // a list of all possible patterns this architecture may match against
     patterns: MatcherList,
     // a list of named transforms. they can be referenced by the
     // context based on a match result
@@ -322,23 +288,54 @@ pub struct ArchDef {
     endianess: Endianess,
     // size of address in bytes for the given architecture
     addr_type: DataType,
+
+    org: Address,
+    syms: SymbolList,
 }
 
-impl ArchDef {
+impl Arch {
     /// start disasssembly
     /// This will write all result strings to the f callback,
     /// and it will modify the current context
-    pub fn disas<T>(
+    /// This call creates a default context and returns it
+    pub fn disas(&self, f: impl DisasCallback, data: &[u8]) -> FdResult<Context> {
+        let mut ctx = Context::new(self.org, self.syms.clone());
+        self.disas_ctx(f, data, &mut ctx)?;
+        Ok(ctx)
+    }
+
+    /// Call the disas function with an existing context
+    pub fn disas_ctx(
         &self,
-        f: impl DisasCallback<T>,
+        mut f: impl DisasCallback,
         data: &[u8],
         ctx: &mut Context,
-        u: T,
     ) -> FdResult<()> {
-        ctx.disas(f, data, self, u)
+        let mut total = 0;
+        // loop until total data processed is out of range
+        // or an error occured
+        while total < data.len() {
+            total = self.match_patterns(&mut f, &data[total..], ctx)?;
+        }
+        Ok(())
+    }
+
+    fn match_patterns<'a>(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &'a [u8],
+        ctx: &mut Context,
+    ) -> FdResult<usize> {
+        for pattern in self.patterns.iter() {
+            if pattern.is_match(self, ctx, data) {
+                let res = pattern.transform(f, data, self, ctx)?;
+                return Ok(res);
+            }
+        }
+        Err(Error::NoMatch)
     }
 
     pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
-        todo!()
+        self.transforms.get(name)
     }
 }
