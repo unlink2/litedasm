@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::{Error, FdResult};
 
 use super::{
-    symbols::{Symbol, SymbolKey, SymbolKind, SymbolList},
+    symbols::{Scope, Symbol, SymbolKey, SymbolKind, SymbolList},
     Address, DataType, ValueType,
 };
 
@@ -71,11 +71,11 @@ pub enum Transform {
     String(String),
     /// Defsym takes a string and defines a clear name
     /// for the given value at the requested offset
-    DefSymU8(String, usize),
-    DefSymU16(String, usize),
-    DefSymU32(String, usize),
-    DefSymU64(String, usize),
-    DefSymAddress(String, usize),
+    DefSymU8(String, usize, Scope),
+    DefSymU16(String, usize, Scope),
+    DefSymU32(String, usize, Scope),
+    DefSymU64(String, usize, Scope),
+    DefSymAddress(String, usize, Scope),
     #[default]
     Skip,
 }
@@ -105,13 +105,13 @@ impl Transform {
             Transform::AbsU32Hex(_) => todo!(),
             Transform::AbsU64Hex(_) => todo!(),
             Transform::String(s) => f(s, arch, ctx, u)?,
-            Transform::DefSymU8(s, _) => todo!(),
-            Transform::DefSymU16(s, _) => todo!(),
-            Transform::DefSymU32(s, _) => todo!(),
-            Transform::DefSymU64(s, _) => todo!(),
-            Transform::DefSymAddress(s, _) => ctx.def_sym(
+            Transform::DefSymU8(s, _, scope) => todo!(),
+            Transform::DefSymU16(s, _, scope) => todo!(),
+            Transform::DefSymU32(s, _, scope) => todo!(),
+            Transform::DefSymU64(s, _, scope) => todo!(),
+            Transform::DefSymAddress(s, _, scope) => ctx.def_symbol(
                 Self::to_addr(data, arch).ok_or(Error::TransformOutOfData(ctx.org))?,
-                Symbol::new(s.clone(), SymbolKind::Label),
+                Symbol::new(s.clone(), SymbolKind::Label, *scope),
             ),
             Transform::Skip => (),
         }
@@ -130,11 +130,11 @@ impl Transform {
             Transform::AbsU32Hex(_) => DataType::U32,
             Transform::AbsU64Hex(_) => DataType::U64,
             Transform::String(_) => DataType::None,
-            Transform::DefSymU8(_, _) => DataType::U8,
-            Transform::DefSymU16(_, _) => DataType::U16,
-            Transform::DefSymU32(_, _) => DataType::U32,
-            Transform::DefSymU64(_, _) => DataType::U64,
-            Transform::DefSymAddress(_, _) => addr_type,
+            Transform::DefSymU8(..) => DataType::U8,
+            Transform::DefSymU16(..) => DataType::U16,
+            Transform::DefSymU32(..) => DataType::U32,
+            Transform::DefSymU64(..) => DataType::U64,
+            Transform::DefSymAddress(..) => addr_type,
             Transform::Skip => DataType::None,
         }
     }
@@ -146,11 +146,11 @@ impl Transform {
             Transform::AbsU32Hex(o) => *o,
             Transform::AbsU64Hex(o) => *o,
             Transform::String(_) => 0,
-            Transform::DefSymU8(_, o) => *o,
-            Transform::DefSymU16(_, o) => *o,
-            Transform::DefSymU32(_, o) => *o,
-            Transform::DefSymU64(_, o) => *o,
-            Transform::DefSymAddress(_, o) => *o,
+            Transform::DefSymU8(_, o, ..) => *o,
+            Transform::DefSymU16(_, o, ..) => *o,
+            Transform::DefSymU32(_, o, ..) => *o,
+            Transform::DefSymU64(_, o, ..) => *o,
+            Transform::DefSymAddress(_, o, ..) => *o,
             Transform::Skip => 0,
         }
     }
@@ -297,12 +297,12 @@ impl Context {
         self.org + self.offset
     }
 
-    pub fn def_sym(&mut self, key: SymbolKey, sym: Symbol) {
+    pub fn def_symbol(&mut self, key: SymbolKey, sym: Symbol) {
         self.syms.def_symbol(key, sym);
     }
 
-    pub fn get_sym(&self, key: SymbolKey) -> Option<&Symbol> {
-        self.syms.get_symbol(key)
+    pub fn get_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
+        self.syms.get_symbol(key, self.address())
     }
 
     // obtain the transform list for all possible matches
