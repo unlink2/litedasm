@@ -10,10 +10,34 @@ pub fn init() -> FdResult<()> {
         std::process::exit(0);
     }
 
-    let test_arch = &a6502::ARCH;
-    test_arch
-        .disas(default_callback, &[0xFF, 0xaa, 0x1, 0x69, 0x02])
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::core::dasm::arch::Arch;
+
+    fn collect_arch(arch: &Arch, data: &[u8], expected: &str) {
+        let mut result = "".to_string();
+        arch.disas(
+            |s, _arch, _ctx| {
+                result.push_str(s);
+                Ok(())
+            },
+            data,
+        )
         .unwrap();
 
-    Ok(())
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn a6502() {
+        collect_arch(
+            &a6502::ARCH,
+            &[0xFF, 0xaa, 0x69, 0x02, 0x1],
+            ".db ff\n.db aa\nadc #$02\n.db 01\n",
+        );
+    }
 }
