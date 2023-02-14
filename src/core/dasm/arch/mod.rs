@@ -1,3 +1,5 @@
+pub mod a6502;
+
 use std::collections::BTreeMap;
 
 #[cfg(feature = "serde")]
@@ -15,8 +17,9 @@ use super::{
 /// which can be used to make the callback work
 pub trait DisasCallback = FnMut(&str, &Arch, &mut Context) -> FdResult<()>;
 
-pub fn default_callback(text: &str, arch: &Arch, ctx: &mut Context) -> FdResult<()> {
-    todo!()
+pub fn default_callback(text: &str, _arch: &Arch, _ctx: &mut Context) -> FdResult<()> {
+    print!("{}", text);
+    Ok(())
 }
 
 /// A match pattern
@@ -205,7 +208,8 @@ pub type TransformList = Vec<Transform>;
 pub struct Matcher {
     // a list of patterns that have to match for this matcher to be
     // a full match
-    patterns: Vec<PatternList>,
+    // offset, Pattern
+    patterns: Vec<(usize, Pattern)>,
     // the name of the transform to apply in case of a match
     transforms: String,
 }
@@ -213,7 +217,16 @@ pub struct Matcher {
 impl Matcher {
     /// check if this matcher matches the pattern specified
     pub fn is_match(&self, arch: &Arch, ctx: &mut Context, data: &[u8]) -> bool {
-        todo!()
+        for (offset, pattern) in self.patterns.iter() {
+            if let Some(byte) = data.get(*offset) {
+                if !pattern.is_match(arch, ctx, *byte) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        true
     }
 
     /// apply the apropriate transform for this matcher
