@@ -9,7 +9,7 @@ use crate::prelude::{Error, FdResult};
 
 use super::{
     symbols::{Scope, Symbol, SymbolKey, SymbolKind, SymbolList},
-    Address, DataType, ValueType,
+    Address, DataType, ValueType, ValueTypeFmt,
 };
 
 /// This callback is called for every matched pattern with the final
@@ -69,23 +69,12 @@ pub struct DefSym {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, Clone, Copy)]
-pub enum AbsFmt {
-    Binary,
-    Decimal,
-    #[default]
-    LowerHex,
-    Octal,
-    UpperHex,
-}
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct AbsOut {
     #[cfg_attr(feature = "serde", serde(default))]
     offset: usize,
     #[cfg_attr(feature = "serde", serde(default))]
-    fmt: AbsFmt,
+    fmt: ValueTypeFmt,
     #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
 }
@@ -114,6 +103,10 @@ pub enum Transform {
 }
 
 impl Transform {
+    pub fn new_line() -> Self {
+        Self::String("\n".into())
+    }
+
     pub fn apply(
         &self,
         f: &mut dyn DisasCallback,
@@ -401,7 +394,7 @@ impl Arch {
         // loop until total data processed is out of range
         // or an error occured
         while total < data.len() {
-            total = self.match_patterns(&mut f, &data[total..], ctx)?;
+            total += self.match_patterns(&mut f, &data[total..], ctx)?;
         }
         Ok(())
     }

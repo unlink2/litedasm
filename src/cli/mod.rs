@@ -11,7 +11,9 @@ pub fn init() -> FdResult<()> {
     }
 
     let test_arch = &a6502::ARCH;
-    test_arch.disas(default_callback, &[0xFF, 0xaa]).unwrap();
+    test_arch
+        .disas(default_callback, &[0xFF, 0xaa, 0x1])
+        .unwrap();
 
     Ok(())
 }

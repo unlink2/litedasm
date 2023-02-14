@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use super::{
-    AbsFmt, AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList,
-};
+use crate::core::dasm::ValueTypeFmt;
+
+use super::{AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -23,9 +23,10 @@ fn transforms() -> BTreeMap<String, TransformList> {
             Transform::String(".db ".into()),
             Transform::Abs(AbsOut {
                 offset: 0,
-                fmt: AbsFmt::UpperHex,
+                fmt: ValueTypeFmt::LowerHex(2),
                 data_type: crate::core::dasm::DataType::U8,
             }),
+            Transform::new_line(),
         ],
     );
 
