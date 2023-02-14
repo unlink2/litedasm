@@ -53,10 +53,6 @@ type PatternList = Vec<Pattern>;
 
 impl ValueType {}
 
-fn default_radix() -> usize {
-    16
-}
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct DefSym {
@@ -73,12 +69,23 @@ pub struct DefSym {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone, Copy)]
+pub enum AbsFmt {
+    Binary,
+    Decimal,
+    #[default]
+    LowerHex,
+    Octal,
+    UpperHex,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct AbsOut {
     #[cfg_attr(feature = "serde", serde(default))]
     offset: usize,
-    #[cfg_attr(feature = "serde", serde(default = "default_radix"))]
-    radix: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
+    fmt: AbsFmt,
     #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
 }
@@ -100,6 +107,8 @@ pub enum Transform {
     /// for the given value at the requested offset
     DefSym(DefSym),
     DefSymAddress(DefSym),
+    // consume n bytes
+    Consume(usize),
     #[default]
     Skip,
 }
@@ -125,7 +134,11 @@ impl Transform {
         let dt = self.data_type(arch.addr_type);
 
         match self {
-            Transform::Abs(ao) => todo!(),
+            Transform::Abs(ao) => f(
+                &Self::to_value(data, ao.data_type, arch)?.to_string(ao.fmt),
+                arch,
+                ctx,
+            )?,
             Transform::String(s) => f(s, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
@@ -137,6 +150,7 @@ impl Transform {
             ),
             Transform::Skip => (),
             Transform::CurrentAddress => todo!(),
+            Transform::Consume(_) => {}
         }
 
         Ok(self.data_len())
@@ -160,8 +174,9 @@ impl Transform {
             Transform::DefSym(ds) => ds.data_type,
             Transform::Skip => DataType::None,
             Transform::CurrentAddress => DataType::None,
-            Transform::String(_) => todo!(),
+            Transform::String(_) => DataType::None,
             Transform::DefSymAddress(_) => addr_type,
+            Transform::Consume(_) => DataType::None,
         }
     }
 
@@ -173,6 +188,7 @@ impl Transform {
             Transform::Skip => 0,
             Transform::CurrentAddress => 0,
             Transform::DefSymAddress(ds) => ds.offset,
+            Transform::Consume(_) => 0,
         }
     }
 
@@ -184,6 +200,7 @@ impl Transform {
             Transform::DefSym(_) => 0,
             Transform::Skip => 0,
             Transform::DefSymAddress(_) => 0,
+            Transform::Consume(skip) => *skip,
         }
     }
 
@@ -199,6 +216,19 @@ impl Transform {
 
 pub type TransformList = Vec<Transform>;
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
+pub struct PatternAt {
+    offset: usize,
+    pattern: Pattern,
+}
+
+impl PatternAt {
+    pub fn new(pattern: Pattern, offset: usize) -> Self {
+        Self { pattern, offset }
+    }
+}
+
 /// A matcher matches the pattern list and if *all* patterns match
 /// it will apply the formatter
 /// the transforms are referened by the transform string
@@ -208,8 +238,7 @@ pub type TransformList = Vec<Transform>;
 pub struct Matcher {
     // a list of patterns that have to match for this matcher to be
     // a full match
-    // offset, Pattern
-    patterns: Vec<(usize, Pattern)>,
+    patterns: Vec<PatternAt>,
     // the name of the transform to apply in case of a match
     transforms: String,
 }
@@ -217,9 +246,9 @@ pub struct Matcher {
 impl Matcher {
     /// check if this matcher matches the pattern specified
     pub fn is_match(&self, arch: &Arch, ctx: &mut Context, data: &[u8]) -> bool {
-        for (offset, pattern) in self.patterns.iter() {
-            if let Some(byte) = data.get(*offset) {
-                if !pattern.is_match(arch, ctx, *byte) {
+        for pa in self.patterns.iter() {
+            if let Some(byte) = data.get(pa.offset) {
+                if !pa.pattern.is_match(arch, ctx, *byte) {
                     return false;
                 }
             } else {

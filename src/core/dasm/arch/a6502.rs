@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 
-use super::{Arch, Matcher, MatcherList, Pattern, TransformList};
+use super::{
+    AbsFmt, AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList,
+};
 use lazy_static::lazy_static;
 
-/// Built-in architecture for the 6502 family
 lazy_static! {
+    /// Built-in architecture for the 6502 family
     pub static ref ARCH: Arch = Arch {
         patterns: patterns(),
         transforms: transforms(),
@@ -15,12 +17,24 @@ lazy_static! {
 fn transforms() -> BTreeMap<String, TransformList> {
     let mut map = BTreeMap::default();
 
+    map.insert(
+        "define_byte".into(),
+        vec![
+            Transform::String(".db ".into()),
+            Transform::Abs(AbsOut {
+                offset: 0,
+                fmt: AbsFmt::UpperHex,
+                data_type: crate::core::dasm::DataType::U8,
+            }),
+        ],
+    );
+
     map
 }
 
 fn patterns() -> MatcherList {
     vec![Matcher {
-        patterns: vec![(0, Pattern::Any)],
+        patterns: vec![PatternAt::new(Pattern::Any, 0)],
         transforms: "define_byte".into(),
     }]
 }

@@ -1,6 +1,8 @@
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use self::arch::AbsFmt;
+
 pub mod arch;
 pub mod symbols;
 
@@ -56,4 +58,20 @@ pub enum ValueType {
     I64(i64),
     #[default]
     None,
+}
+
+impl ValueType {
+    pub fn to_string(&self, fmt: AbsFmt) -> String {
+        match self {
+            ValueType::U8(_) => format!("test"),
+            ValueType::U16(_) => todo!(),
+            ValueType::U32(_) => todo!(),
+            ValueType::U64(_) => todo!(),
+            ValueType::I8(_) => todo!(),
+            ValueType::I16(_) => todo!(),
+            ValueType::I32(_) => todo!(),
+            ValueType::I64(_) => todo!(),
+            ValueType::None => "None".into(),
+        }
+    }
 }
