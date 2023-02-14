@@ -18,12 +18,45 @@ fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format!("{}_immediate", name),
         vec![
-            Transform::String("adc #$".into()),
+            Transform::String(format!("{} #$", name)),
             Transform::Abs(AbsOut {
                 offset: 1,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
             }),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format!("{}_zp", name),
+        vec![
+            Transform::String(format!("{} $", name)),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format!("{}_zp_x", name),
+        vec![
+            Transform::String(format!("{} $", name)),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+            Transform::String(", x".into()),
             Transform::new_line(),
             Transform::Consume(1),
         ],
@@ -46,11 +79,13 @@ fn transforms() -> BTreeMap<String, TransformList> {
         ],
     );
     transform_immediate(&mut map, "adc");
+    transform_zp(&mut map, "adc");
+    transform_zp_x(&mut map, "adc");
 
     map
 }
 
-fn matcher1(op: u8, name: &str) -> Matcher {
+fn matcher2(op: u8, name: &str) -> Matcher {
     Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
@@ -62,7 +97,9 @@ fn matcher1(op: u8, name: &str) -> Matcher {
 
 fn patterns() -> MatcherList {
     vec![
-        matcher1(0x69, "adc_immediate"),
+        matcher2(0x69, "adc_immediate"),
+        matcher2(0x65, "adc_zp"),
+        matcher2(0x75, "adc_zp_x"),
         Matcher {
             patterns: vec![PatternAt::new(Pattern::Any, 0)],
             transforms: "define_byte".into(),

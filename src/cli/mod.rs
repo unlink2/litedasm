@@ -39,5 +39,7 @@ mod test {
             &[0xFF, 0xaa, 0x69, 0x02, 0x1],
             ".db ff\n.db aa\nadc #$02\n.db 01\n",
         );
+
+        test_arch_result(&a6502::ARCH, &[0x75, 0x12], "adc $12, x\n");
     }
 }
