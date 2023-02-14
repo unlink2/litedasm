@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::core::dasm::ValueTypeFmt;
+use crate::core::dasm::{DataType, ValueTypeFmt};
 
 use super::{AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList};
 use lazy_static::lazy_static;
@@ -30,12 +30,35 @@ fn transforms() -> BTreeMap<String, TransformList> {
         ],
     );
 
+    map.insert(
+        "adc_imm".into(),
+        vec![
+            Transform::String("adc #$".into()),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+
     map
 }
 
 fn patterns() -> MatcherList {
-    vec![Matcher {
-        patterns: vec![PatternAt::new(Pattern::Any, 0)],
-        transforms: "define_byte".into(),
-    }]
+    vec![
+        Matcher {
+            patterns: vec![
+                PatternAt::new(Pattern::Exact(0x69), 0),
+                PatternAt::new(Pattern::Any, 1),
+            ],
+            transforms: "adc_imm".into(),
+        },
+        Matcher {
+            patterns: vec![PatternAt::new(Pattern::Any, 0)],
+            transforms: "define_byte".into(),
+        },
+    ]
 }

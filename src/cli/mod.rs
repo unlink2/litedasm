@@ -12,7 +12,7 @@ pub fn init() -> FdResult<()> {
 
     let test_arch = &a6502::ARCH;
     test_arch
-        .disas(default_callback, &[0xFF, 0xaa, 0x1])
+        .disas(default_callback, &[0xFF, 0xaa, 0x1, 0x69, 0x02])
         .unwrap();
 
     Ok(())
