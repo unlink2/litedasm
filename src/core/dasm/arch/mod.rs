@@ -50,6 +50,24 @@ type PatternList = Vec<Pattern>;
 
 impl ValueType {}
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
+pub struct DefSym {
+    name: String,
+    offset: usize,
+    scope: Scope,
+    data_type: DataType,
+    symbol_kind: SymbolKind,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
+pub struct AbsOut {
+    offset: usize,
+    radix: usize,
+    data_type: DataType,
+}
+
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
@@ -59,18 +77,14 @@ pub enum Transform {
     /// The absolute formatters take in the input array,
     /// and attempt to read its absolute value at a given offset
     /// from the array
-    AbsU8Hex(usize),
-    AbsU16Hex(usize),
-    AbsU32Hex(usize),
-    AbsU64Hex(usize),
+    /// AbsXX takes the offset and radix
+    Abs(AbsOut),
+    CurrentAddress,
     String(String),
     /// Defsym takes a string and defines a clear name
     /// for the given value at the requested offset
-    DefSymU8(String, usize, Scope),
-    DefSymU16(String, usize, Scope),
-    DefSymU32(String, usize, Scope),
-    DefSymU64(String, usize, Scope),
-    DefSymAddress(String, usize, Scope),
+    DefSym(DefSym),
+    DefSymAddress(DefSym),
     #[default]
     Skip,
 }
@@ -93,59 +107,68 @@ impl Transform {
         )
         .ok_or(Error::TransformOutOfData(ctx.org))?;
 
+        let dt = self.data_type(arch.addr_type);
+
         match self {
-            Transform::AbsU8Hex(_) => todo!(),
-            Transform::AbsU16Hex(_) => todo!(),
-            Transform::AbsU32Hex(_) => todo!(),
-            Transform::AbsU64Hex(_) => todo!(),
+            Transform::Abs(ao) => todo!(),
             Transform::String(s) => f(s, arch, ctx)?,
-            Transform::DefSymU8(s, _, scope) => todo!(),
-            Transform::DefSymU16(s, _, scope) => todo!(),
-            Transform::DefSymU32(s, _, scope) => todo!(),
-            Transform::DefSymU64(s, _, scope) => todo!(),
-            Transform::DefSymAddress(s, _, scope) => ctx.def_symbol(
-                Self::to_addr(data, arch).ok_or(Error::TransformOutOfData(ctx.org))?,
-                Symbol::new(s.clone(), SymbolKind::Label, *scope),
+            Transform::DefSym(ds) => ctx.def_symbol(
+                Self::to_value(data, dt, arch)?,
+                Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
+            ),
+            Transform::DefSymAddress(ds) => ctx.def_symbol(
+                Self::to_addr(data, arch)?,
+                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
             ),
             Transform::Skip => (),
+            Transform::CurrentAddress => todo!(),
         }
 
-        Ok(self.data_type(arch.addr_type).data_len())
+        Ok(self.data_len())
     }
 
-    fn to_addr(data: &[u8], arch: &Arch) -> Option<ValueType> {
-        arch.endianess.transform(data, arch.addr_type)
+    fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
+        arch.endianess
+            .transform(data, arch.addr_type)
+            .ok_or(Error::TransformOutOfData(0))
+    }
+
+    fn to_value(data: &[u8], data_type: DataType, arch: &Arch) -> FdResult<ValueType> {
+        arch.endianess
+            .transform(data, data_type)
+            .ok_or(Error::TransformOutOfData(0))
     }
 
     fn data_type(&self, addr_type: DataType) -> DataType {
         match self {
-            Transform::AbsU8Hex(_) => DataType::U8,
-            Transform::AbsU16Hex(_) => DataType::U16,
-            Transform::AbsU32Hex(_) => DataType::U32,
-            Transform::AbsU64Hex(_) => DataType::U64,
-            Transform::String(_) => DataType::None,
-            Transform::DefSymU8(..) => DataType::U8,
-            Transform::DefSymU16(..) => DataType::U16,
-            Transform::DefSymU32(..) => DataType::U32,
-            Transform::DefSymU64(..) => DataType::U64,
-            Transform::DefSymAddress(..) => addr_type,
+            Transform::Abs(ao) => ao.data_type,
+            Transform::DefSym(ds) => ds.data_type,
             Transform::Skip => DataType::None,
+            Transform::CurrentAddress => DataType::None,
+            Transform::String(_) => todo!(),
+            Transform::DefSymAddress(_) => addr_type,
         }
     }
 
     fn offset(&self) -> usize {
         match self {
-            Transform::AbsU8Hex(o) => *o,
-            Transform::AbsU16Hex(o) => *o,
-            Transform::AbsU32Hex(o) => *o,
-            Transform::AbsU64Hex(o) => *o,
+            Transform::Abs(ao) => ao.offset,
             Transform::String(_) => 0,
-            Transform::DefSymU8(_, o, ..) => *o,
-            Transform::DefSymU16(_, o, ..) => *o,
-            Transform::DefSymU32(_, o, ..) => *o,
-            Transform::DefSymU64(_, o, ..) => *o,
-            Transform::DefSymAddress(_, o, ..) => *o,
+            Transform::DefSym(ds) => ds.offset,
             Transform::Skip => 0,
+            Transform::CurrentAddress => 0,
+            Transform::DefSymAddress(ds) => ds.offset,
+        }
+    }
+
+    fn data_len(&self) -> usize {
+        match self {
+            Transform::Abs(dt) => dt.data_type.data_len(),
+            Transform::CurrentAddress => 0,
+            Transform::String(_) => 0,
+            Transform::DefSym(_) => 0,
+            Transform::Skip => 0,
+            Transform::DefSymAddress(_) => 0,
         }
     }
 
