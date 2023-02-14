@@ -38,8 +38,11 @@ impl Scope {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Symbol {
+    #[cfg_attr(feature = "serde", serde(default))]
     name: String,
+    #[cfg_attr(feature = "serde", serde(default))]
     kind: SymbolKind,
+    #[cfg_attr(feature = "serde", serde(default))]
     scope: Scope,
 }
 
@@ -52,6 +55,7 @@ impl Symbol {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct SymbolList {
+    #[cfg_attr(feature = "serde", serde(default))]
     map: BTreeMap<SymbolKey, Vec<Symbol>>,
 }
 

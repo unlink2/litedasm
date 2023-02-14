@@ -50,21 +50,33 @@ type PatternList = Vec<Pattern>;
 
 impl ValueType {}
 
+fn default_radix() -> usize {
+    16
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct DefSym {
+    #[cfg_attr(feature = "serde", serde(default))]
     name: String,
+    #[cfg_attr(feature = "serde", serde(default))]
     offset: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
     scope: Scope,
+    #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
+    #[cfg_attr(feature = "serde", serde(default))]
     symbol_kind: SymbolKind,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct AbsOut {
+    #[cfg_attr(feature = "serde", serde(default))]
     offset: usize,
+    #[cfg_attr(feature = "serde", serde(default = "default_radix"))]
     radix: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
 }
 
@@ -272,8 +284,11 @@ impl Endianess {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Context {
+    #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
+    #[cfg_attr(feature = "serde", serde(default))]
     offset: Address,
+    #[cfg_attr(feature = "serde", serde(default))]
     syms: SymbolList,
 }
 
@@ -303,16 +318,22 @@ impl Context {
 #[derive(Default)]
 pub struct Arch {
     // a list of all possible patterns this architecture may match against
+    #[cfg_attr(feature = "serde", serde(default))]
     patterns: MatcherList,
     // a list of named transforms. they can be referenced by the
     // context based on a match result
+    #[cfg_attr(feature = "serde", serde(default))]
     transforms: BTreeMap<String, TransformList>,
 
+    #[cfg_attr(feature = "serde", serde(default))]
     endianess: Endianess,
     // size of address in bytes for the given architecture
+    #[cfg_attr(feature = "serde", serde(default))]
     addr_type: DataType,
 
+    #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
+    #[cfg_attr(feature = "serde", serde(default))]
     syms: SymbolList,
 }
 
