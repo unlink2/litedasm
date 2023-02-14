@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use super::dasm::Address;
+use super::dasm::ValueTypeFmt;
 
 pub type FdResult<T> = Result<T, Error>;
 
@@ -14,6 +15,8 @@ pub enum Error {
     NoMatch,
     #[error("Transform was not found")]
     TransformNotFound(String),
+    #[error("Unsupported format")]
+    UnsupportedFormat(ValueTypeFmt),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

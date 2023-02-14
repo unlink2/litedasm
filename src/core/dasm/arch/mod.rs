@@ -128,7 +128,7 @@ impl Transform {
 
         match self {
             Transform::Abs(ao) => f(
-                &Self::to_value(data, ao.data_type, arch)?.to_string(ao.fmt),
+                &Self::to_value(data, ao.data_type, arch)?.try_to_string(ao.fmt)?,
                 arch,
                 ctx,
             )?,

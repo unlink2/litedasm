@@ -1,3 +1,4 @@
+use crate::prelude::{Error, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +44,7 @@ impl DataType {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ValueTypeFmt {
     Binary(usize),
     Decimal(usize),
@@ -77,17 +78,18 @@ pub enum ValueType {
 macro_rules! format_value_type {
     ($val: expr, $fmt:expr) => {
         match $fmt {
-            ValueTypeFmt::Binary(width) => format!("{:0width$b}", $val),
-            ValueTypeFmt::Decimal(width) => format!("{:0width$}", $val),
-            ValueTypeFmt::LowerHex(width) => format!("{:0width$x}", $val),
-            ValueTypeFmt::Octal(width) => format!("{:0width$o}", $val),
-            ValueTypeFmt::UpperHex(width) => format!("{:0width$X}", $val),
+            ValueTypeFmt::Binary(width) => Ok(format!("{:0width$b}", $val)),
+            ValueTypeFmt::Decimal(width) => Ok(format!("{:0width$}", $val)),
+            ValueTypeFmt::LowerHex(width) => Ok(format!("{:0width$x}", $val)),
+            ValueTypeFmt::Octal(width) => Ok(format!("{:0width$o}", $val)),
+            ValueTypeFmt::UpperHex(width) => Ok(format!("{:0width$X}", $val)),
+            _ => Err(Error::UnsupportedFormat($fmt)),
         }
     };
 }
 
 impl ValueType {
-    pub fn to_string(&self, fmt: ValueTypeFmt) -> String {
+    pub fn try_to_string(&self, fmt: ValueTypeFmt) -> FdResult<String> {
         match self {
             ValueType::U8(v) => format_value_type!(v, fmt),
             ValueType::U16(_) => todo!(),
@@ -97,7 +99,7 @@ impl ValueType {
             ValueType::I16(_) => todo!(),
             ValueType::I32(_) => todo!(),
             ValueType::I64(_) => todo!(),
-            ValueType::None => "None".into(),
+            ValueType::None => Ok("None".into()),
         }
     }
 }
