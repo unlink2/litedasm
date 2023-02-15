@@ -14,6 +14,8 @@ use super::{
 
 // the data that is passed to
 // the callback for a decoded instruction
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
 pub struct Node {
     pub string: String,
 }
@@ -104,7 +106,7 @@ pub enum Transform {
     /// AbsXX takes the offset and radix
     Abs(AbsOut),
     CurrentAddress,
-    String(String),
+    Static(Node),
     /// Defsym takes a string and defines a clear name
     /// for the given value at the requested offset
     DefSym(DefSym),
@@ -117,7 +119,7 @@ pub enum Transform {
 
 impl Transform {
     pub fn new_line() -> Self {
-        Self::String("\n".into())
+        Self::Static(Node::new("\n".into()))
     }
 
     pub fn apply(
@@ -146,7 +148,7 @@ impl Transform {
                 ctx,
             )?,
             // FIXME don't clone the string here...
-            Transform::String(s) => f(&Node::new(s.to_owned()), arch, ctx)?,
+            Transform::Static(s) => f(&s, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
                 Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
@@ -181,7 +183,7 @@ impl Transform {
             Transform::DefSym(ds) => ds.data_type,
             Transform::Skip => DataType::None,
             Transform::CurrentAddress => DataType::None,
-            Transform::String(_) => DataType::None,
+            Transform::Static(_) => DataType::None,
             Transform::DefSymAddress(_) => addr_type,
             Transform::Consume(_) => DataType::None,
         }
@@ -190,7 +192,7 @@ impl Transform {
     fn offset(&self) -> usize {
         match self {
             Transform::Abs(ao) => ao.offset,
-            Transform::String(_) => 0,
+            Transform::Static(_) => 0,
             Transform::DefSym(ds) => ds.offset,
             Transform::Skip => 0,
             Transform::CurrentAddress => 0,
@@ -203,7 +205,7 @@ impl Transform {
         match self {
             Transform::Abs(dt) => dt.data_type.data_len(),
             Transform::CurrentAddress => 0,
-            Transform::String(_) => 0,
+            Transform::Static(_) => 0,
             Transform::DefSym(_) => 0,
             Transform::Skip => 0,
             Transform::DefSymAddress(_) => 0,

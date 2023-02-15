@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
-use super::{AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList};
+use super::{
+    AbsOut, Arch, Matcher, MatcherList, Node, Pattern, PatternAt, Transform, TransformList,
+};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -37,7 +39,7 @@ fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format_mode(name, IMMEDIATE),
         vec![
-            Transform::String(format!("{} #$", name)),
+            Transform::Static(Node::new(format!("{} #$", name))),
             Transform::Abs(AbsOut {
                 offset: 1,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -53,7 +55,7 @@ fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format_mode(name, ZP),
         vec![
-            Transform::String(format!("{} $", name)),
+            Transform::Static(Node::new(format!("{} $", name))),
             Transform::Abs(AbsOut {
                 offset: 1,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -69,13 +71,13 @@ fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format_mode(name, ZP_X),
         vec![
-            Transform::String(format!("{} $", name)),
+            Transform::Static(Node::new(format!("{} $", name))),
             Transform::Abs(AbsOut {
                 offset: 1,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
             }),
-            Transform::String(", x".into()),
+            Transform::Static(Node::new(", x".into())),
             Transform::new_line(),
             Transform::Consume(1),
         ],
@@ -95,7 +97,7 @@ fn transforms() -> BTreeMap<String, TransformList> {
     map.insert(
         "define_byte".into(),
         vec![
-            Transform::String(".db ".into()),
+            Transform::Static(Node::new(".db ".into())),
             Transform::Abs(AbsOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
