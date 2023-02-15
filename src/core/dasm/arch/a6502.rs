@@ -1,17 +1,13 @@
 use std::collections::BTreeMap;
 
-use crate::core::dasm::{DataType, ValueTypeFmt};
+use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
 use super::{AbsOut, Arch, Matcher, MatcherList, Pattern, PatternAt, Transform, TransformList};
 use lazy_static::lazy_static;
 
 lazy_static! {
     /// Built-in architecture for the 6502 family
-    pub static ref ARCH: Arch = Arch {
-        patterns: patterns(),
-        transforms: transforms(),
-        ..Arch::default()
-    };
+    pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
 const IMMEDIATE: &str = "immediate";
@@ -153,7 +149,7 @@ fn matcher_default_modes(matchers: &mut MatcherList, name: &str, ops: [u8; 8]) {
     matcher2(matchers, ops[7], name, INDIRECT_Y);
 }
 
-fn patterns() -> BTreeMap<String, MatcherList> {
+fn patterns() -> MatcherList {
     let mut list = vec![];
     matcher_default_modes(
         &mut list,
@@ -169,8 +165,18 @@ fn patterns() -> BTreeMap<String, MatcherList> {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
         transforms: "define_byte".into(),
     });
+    list
+}
 
-    let mut patterns = BTreeMap::default();
-    patterns.insert("".into(), list);
-    patterns
+fn archs() -> BTreeMap<String, Arch> {
+    let mut map = BTreeMap::default();
+    map.insert(
+        "".into(),
+        Arch {
+            patterns: patterns(),
+            transforms: transforms(),
+            ..Arch::default()
+        },
+    );
+    map
 }

@@ -107,9 +107,9 @@ impl ValueType {
 #[cfg(test)]
 mod test {
     use super::arch::a6502;
-    use crate::core::dasm::arch::Arch;
+    use crate::core::dasm::arch::Archs;
 
-    fn test_arch_result(arch: &Arch, data: &[u8], expected: &str) {
+    fn test_arch_result(arch: &Archs, data: &[u8], expected: &str) {
         let mut result = "".to_string();
         arch.disas(
             |s, _arch, _ctx| {

@@ -17,8 +17,8 @@ pub enum Error {
     TransformNotFound(String),
     #[error("Unsupported format")]
     UnsupportedFormat(ValueTypeFmt),
-    #[error("Patterns not found")]
-    PatternsNotFound(String),
+    #[error("Arch not found")]
+    ArchNotFound(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

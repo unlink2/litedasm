@@ -319,9 +319,9 @@ impl Endianess {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Context {
-    // which pattern list to use
+    // which architecture to use
     #[cfg_attr(feature = "serde", serde(default))]
-    patterns: String,
+    arch_key: String,
     #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -333,7 +333,7 @@ pub struct Context {
 impl Context {
     pub fn new(org: Address, syms: SymbolList) -> Self {
         Self {
-            patterns: "".into(),
+            arch_key: "".into(),
             org,
             syms,
             offset: 0,
@@ -357,11 +357,8 @@ impl Context {
 #[derive(Default)]
 pub struct Arch {
     // a list of all possible patterns this architecture may match against
-    // the list of patterns is a key/value pair to allow
-    // the context to switch instruction sets and matchers on the fly using
-    // transforms. The default key should be an empty string
     #[cfg_attr(feature = "serde", serde(default))]
-    patterns: BTreeMap<String, MatcherList>,
+    patterns: MatcherList,
     // a list of named transforms. they can be referenced by the
     // context based on a match result
     #[cfg_attr(feature = "serde", serde(default))]
@@ -372,14 +369,45 @@ pub struct Arch {
     // size of address in bytes for the given architecture
     #[cfg_attr(feature = "serde", serde(default))]
     addr_type: DataType,
+}
 
+impl Arch {
+    fn match_patterns<'a>(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &'a [u8],
+        ctx: &mut Context,
+    ) -> FdResult<usize> {
+        for pattern in self.patterns.iter() {
+            if pattern.is_match(self, ctx, data) {
+                let res = pattern.transform(f, data, self, ctx)?;
+                return Ok(res);
+            }
+        }
+        Err(Error::NoMatch)
+    }
+
+    pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
+        self.transforms.get(name)
+    }
+}
+
+// a collection of many architectures
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default)]
+pub struct Archs {
+    // a list of archs the context may select
+    archs: BTreeMap<String, Arch>,
+
+    // initial org for context
     #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
+    // inital symbol list
     #[cfg_attr(feature = "serde", serde(default))]
     syms: SymbolList,
 }
 
-impl Arch {
+impl Archs {
     /// start disasssembly
     /// This will write all result strings to the f callback,
     /// and it will modify the current context
@@ -401,32 +429,12 @@ impl Arch {
         // loop until total data processed is out of range
         // or an error occured
         while total < data.len() {
-            total += self.match_patterns(&mut f, &data[total..], ctx)?;
+            let arch = self
+                .archs
+                .get(&ctx.arch_key)
+                .ok_or_else(|| Error::ArchNotFound(ctx.arch_key.clone()))?;
+            total += arch.match_patterns(&mut f, &data[total..], ctx)?;
         }
         Ok(())
-    }
-
-    fn match_patterns<'a>(
-        &self,
-        f: &mut dyn DisasCallback,
-        data: &'a [u8],
-        ctx: &mut Context,
-    ) -> FdResult<usize> {
-        let patterns = self
-            .patterns
-            .get(&ctx.patterns)
-            .ok_or(Error::PatternsNotFound(ctx.patterns.clone()))?;
-
-        for pattern in patterns.iter() {
-            if pattern.is_match(self, ctx, data) {
-                let res = pattern.transform(f, data, self, ctx)?;
-                return Ok(res);
-            }
-        }
-        Err(Error::NoMatch)
-    }
-
-    pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
-        self.transforms.get(name)
     }
 }
