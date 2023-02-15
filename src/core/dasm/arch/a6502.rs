@@ -29,6 +29,14 @@ fn format_mode(name: &str, mode: &str) -> String {
     format!("{name}_{mode}")
 }
 
+fn add_transforms(
+    map: &mut BTreeMap<String, TransformList>,
+    names: &[&str],
+    f: fn(map: &mut BTreeMap<String, TransformList>, name: &str),
+) {
+    names.iter().for_each(|n| f(map, n))
+}
+
 fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format_mode(name, IMMEDIATE),
@@ -45,12 +53,6 @@ fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transforms_immediate(map: &mut BTreeMap<String, TransformList>) {
-    let names = ["adc", "and"];
-
-    names.iter().for_each(|n| transform_immediate(map, n));
-}
-
 fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
         format_mode(name, ZP),
@@ -65,11 +67,6 @@ fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
             Transform::Consume(1),
         ],
     );
-}
-
-fn transforms_zp(map: &mut BTreeMap<String, TransformList>) {
-    let names = ["adc", "and"];
-    names.iter().for_each(|n| transform_zp(map, n));
 }
 
 fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
@@ -89,9 +86,11 @@ fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transforms_zp_x(map: &mut BTreeMap<String, TransformList>) {
+fn transforms_default_modes(map: &mut BTreeMap<String, TransformList>) {
     let names = ["adc", "and"];
-    names.iter().for_each(|n| transform_zp_x(map, n));
+    add_transforms(map, &names, transform_immediate);
+    add_transforms(map, &names, transform_zp);
+    add_transforms(map, &names, transform_zp_x);
 }
 
 fn transforms() -> BTreeMap<String, TransformList> {
@@ -109,9 +108,7 @@ fn transforms() -> BTreeMap<String, TransformList> {
             Transform::new_line(),
         ],
     );
-    transforms_immediate(&mut map);
-    transforms_zp(&mut map);
-    transforms_zp_x(&mut map);
+    transforms_default_modes(&mut map);
 
     map
 }
