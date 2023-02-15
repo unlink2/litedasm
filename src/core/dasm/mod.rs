@@ -2,6 +2,8 @@ use crate::prelude::{Error, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use self::arch::Node;
+
 pub mod arch;
 pub mod symbols;
 
@@ -78,18 +80,18 @@ pub enum ValueType {
 macro_rules! format_value_type {
     ($val: expr, $fmt:expr) => {
         match $fmt {
-            ValueTypeFmt::Binary(width) => Ok(format!("{:0width$b}", $val)),
-            ValueTypeFmt::Decimal(width) => Ok(format!("{:0width$}", $val)),
-            ValueTypeFmt::LowerHex(width) => Ok(format!("{:0width$x}", $val)),
-            ValueTypeFmt::Octal(width) => Ok(format!("{:0width$o}", $val)),
-            ValueTypeFmt::UpperHex(width) => Ok(format!("{:0width$X}", $val)),
+            ValueTypeFmt::Binary(width) => Ok(Node::new(format!("{:0width$b}", $val))),
+            ValueTypeFmt::Decimal(width) => Ok(Node::new(format!("{:0width$}", $val))),
+            ValueTypeFmt::LowerHex(width) => Ok(Node::new(format!("{:0width$x}", $val))),
+            ValueTypeFmt::Octal(width) => Ok(Node::new(format!("{:0width$o}", $val))),
+            ValueTypeFmt::UpperHex(width) => Ok(Node::new(format!("{:0width$X}", $val))),
             _ => Err(Error::UnsupportedFormat($fmt)),
         }
     };
 }
 
 impl ValueType {
-    pub fn try_to_string(&self, fmt: ValueTypeFmt) -> FdResult<String> {
+    pub fn try_to_node(&self, fmt: ValueTypeFmt) -> FdResult<Node> {
         match self {
             ValueType::U8(v) => format_value_type!(v, fmt),
             ValueType::U16(_) => todo!(),
@@ -99,7 +101,7 @@ impl ValueType {
             ValueType::I16(_) => todo!(),
             ValueType::I32(_) => todo!(),
             ValueType::I64(_) => todo!(),
-            ValueType::None => Ok("None".into()),
+            ValueType::None => Ok(Node::new("None".into())),
         }
     }
 }
@@ -112,8 +114,8 @@ mod test {
     fn test_arch_result(arch: &Archs, data: &[u8], expected: &str) {
         let mut result = "".to_string();
         arch.disas(
-            |s, _arch, _ctx| {
-                result.push_str(s);
+            |n, _arch, _ctx| {
+                result.push_str(&n.string);
                 Ok(())
             },
             data,

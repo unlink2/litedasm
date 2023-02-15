@@ -12,13 +12,25 @@ use super::{
     Address, DataType, ValueType, ValueTypeFmt,
 };
 
+// the data that is passed to
+// the callback for a decoded instruction
+pub struct Node {
+    pub string: String,
+}
+
+impl Node {
+    pub fn new(string: String) -> Self {
+        Self { string }
+    }
+}
+
 /// This callback is called for every matched pattern with the final
 /// transformed result. Each context may also pass along a user-data field <T>
 /// which can be used to make the callback work
-pub trait DisasCallback = FnMut(&str, &Arch, &mut Context) -> FdResult<()>;
+pub trait DisasCallback = FnMut(&Node, &Arch, &mut Context) -> FdResult<()>;
 
-pub fn default_callback(text: &str, _arch: &Arch, _ctx: &mut Context) -> FdResult<()> {
-    print!("{}", text);
+pub fn default_callback(node: &Node, _arch: &Arch, _ctx: &mut Context) -> FdResult<()> {
+    print!("{}", node.string);
     Ok(())
 }
 
@@ -129,11 +141,12 @@ impl Transform {
 
         match self {
             Transform::Abs(ao) => f(
-                &Self::to_value(data, ao.data_type, arch)?.try_to_string(ao.fmt)?,
+                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
                 arch,
                 ctx,
             )?,
-            Transform::String(s) => f(s, arch, ctx)?,
+            // FIXME don't clone the string here...
+            Transform::String(s) => f(&Node::new(s.to_owned()), arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
                 Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
