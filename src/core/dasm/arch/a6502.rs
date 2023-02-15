@@ -14,9 +14,22 @@ lazy_static! {
     };
 }
 
+const IMMEDIATE: &str = "immediate";
+const ZP: &str = "zp";
+const ZP_X: &str = "zp_x";
+const ABSOLUTE: &str = "absolute";
+const ABSOLUTE_Y: &str = "absolute_y";
+const ABSOLUTE_X: &str = "absolute_x";
+const INDIRECT_X: &str = "indirect_x";
+const INDIRECT_Y: &str = "indirect_y";
+
+fn format_mode(name: &str, mode: &str) -> String {
+    format!("{name}_{mode}")
+}
+
 fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
-        format!("{}_immediate", name),
+        format_mode(name, IMMEDIATE),
         vec![
             Transform::String(format!("{} #$", name)),
             Transform::Abs(AbsOut {
@@ -38,7 +51,7 @@ fn transforms_immediate(map: &mut BTreeMap<String, TransformList>) {
 
 fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
-        format!("{}_zp", name),
+        format_mode(name, ZP),
         vec![
             Transform::String(format!("{} $", name)),
             Transform::Abs(AbsOut {
@@ -59,7 +72,7 @@ fn transforms_zp(map: &mut BTreeMap<String, TransformList>) {
 
 fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     map.insert(
-        format!("{}_zp_x", name),
+        format_mode(name, ZP_X),
         vec![
             Transform::String(format!("{} $", name)),
             Transform::Abs(AbsOut {
@@ -101,39 +114,47 @@ fn transforms() -> BTreeMap<String, TransformList> {
     map
 }
 
-fn matcher2(op: u8, name: &str) -> Matcher {
-    Matcher {
+fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
             PatternAt::new(Pattern::Any, 1),
         ],
-        transforms: name.into(),
-    }
+        transforms: format!("{name}_{mode}"),
+    })
 }
 
-fn matcher3(op: u8, name: &str) -> Matcher {
-    Matcher {
+fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
             PatternAt::new(Pattern::Any, 2),
         ],
         transforms: name.into(),
-    }
+    })
+}
+
+fn matcher_default_modes(matchers: &mut MatcherList, name: &str, ops: [u8; 8]) {
+    matcher2(matchers, ops[0], name, IMMEDIATE);
+    matcher2(matchers, ops[1], name, ZP);
+    matcher2(matchers, ops[2], name, ZP_X);
+    matcher3(matchers, ops[3], name, ABSOLUTE);
+    matcher3(matchers, ops[4], name, ABSOLUTE_X);
+    matcher3(matchers, ops[5], name, ABSOLUTE_Y);
+    matcher2(matchers, ops[6], name, INDIRECT_X);
+    matcher2(matchers, ops[7], name, INDIRECT_Y);
 }
 
 fn patterns() -> MatcherList {
-    vec![
-        matcher2(0x69, "adc_immediate"),
-        matcher2(0x65, "adc_zp"),
-        matcher2(0x75, "adc_zp_x"),
-        matcher3(0x6D, "adc_absolute"),
-        matcher3(0x7D, "adc_absolute_x"),
-        matcher3(0x79, "adc_absolute_y"),
-        matcher2(0x61, "adc_indirect_x"),
-        matcher2(0x71, "adc_indirect_y"),
-        Matcher {
-            patterns: vec![PatternAt::new(Pattern::Any, 0)],
-            transforms: "define_byte".into(),
-        },
-    ]
+    let mut list = vec![];
+    matcher_default_modes(
+        &mut list,
+        "adc",
+        [0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71],
+    );
+    list.push(Matcher {
+        patterns: vec![PatternAt::new(Pattern::Any, 0)],
+        transforms: "define_byte".into(),
+    });
+    list
 }
