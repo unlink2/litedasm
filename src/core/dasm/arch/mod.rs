@@ -319,6 +319,9 @@ impl Endianess {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Context {
+    // which pattern list to use
+    #[cfg_attr(feature = "serde", serde(default))]
+    patterns: String,
     #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -330,6 +333,7 @@ pub struct Context {
 impl Context {
     pub fn new(org: Address, syms: SymbolList) -> Self {
         Self {
+            patterns: "".into(),
             org,
             syms,
             offset: 0,
@@ -353,8 +357,11 @@ impl Context {
 #[derive(Default)]
 pub struct Arch {
     // a list of all possible patterns this architecture may match against
+    // the list of patterns is a key/value pair to allow
+    // the context to switch instruction sets and matchers on the fly using
+    // transforms. The default key should be an empty string
     #[cfg_attr(feature = "serde", serde(default))]
-    patterns: MatcherList,
+    patterns: BTreeMap<String, MatcherList>,
     // a list of named transforms. they can be referenced by the
     // context based on a match result
     #[cfg_attr(feature = "serde", serde(default))]
@@ -405,7 +412,12 @@ impl Arch {
         data: &'a [u8],
         ctx: &mut Context,
     ) -> FdResult<usize> {
-        for pattern in self.patterns.iter() {
+        let patterns = self
+            .patterns
+            .get(&ctx.patterns)
+            .ok_or(Error::PatternsNotFound(ctx.patterns.clone()))?;
+
+        for pattern in patterns.iter() {
             if pattern.is_match(self, ctx, data) {
                 let res = pattern.transform(f, data, self, ctx)?;
                 return Ok(res);

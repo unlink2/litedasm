@@ -153,7 +153,7 @@ fn matcher_default_modes(matchers: &mut MatcherList, name: &str, ops: [u8; 8]) {
     matcher2(matchers, ops[7], name, INDIRECT_Y);
 }
 
-fn patterns() -> MatcherList {
+fn patterns() -> BTreeMap<String, MatcherList> {
     let mut list = vec![];
     matcher_default_modes(
         &mut list,
@@ -169,5 +169,8 @@ fn patterns() -> MatcherList {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
         transforms: "define_byte".into(),
     });
-    list
+
+    let mut patterns = BTreeMap::default();
+    patterns.insert("".into(), list);
+    patterns
 }
