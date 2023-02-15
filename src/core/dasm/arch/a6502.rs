@@ -120,7 +120,7 @@ fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
             PatternAt::new(Pattern::Exact(op), 0),
             PatternAt::new(Pattern::Any, 1),
         ],
-        transforms: format!("{name}_{mode}"),
+        transforms: format_mode(name, mode),
     })
 }
 
@@ -130,7 +130,7 @@ fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
             PatternAt::new(Pattern::Exact(op), 0),
             PatternAt::new(Pattern::Any, 2),
         ],
-        transforms: name.into(),
+        transforms: format_mode(name, mode),
     })
 }
 
