@@ -82,6 +82,7 @@ pub struct AbsOut {
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
+/// TODO implement transforms that can switch org and architecture on the fly
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub enum Transform {
