@@ -2,7 +2,7 @@ use crate::prelude::{Error, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use self::arch::Node;
+use self::arch::{Node, NodeKind};
 
 pub mod arch;
 pub mod symbols;
@@ -104,7 +104,7 @@ impl ValueType {
             ValueType::None => Ok(Node::new("None".into())),
         };
         let mut node = node?;
-        node.value = Some(*self);
+        node.kind = NodeKind::Value(*self);
         Ok(node)
     }
 }

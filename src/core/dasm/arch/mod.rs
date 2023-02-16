@@ -12,13 +12,22 @@ use super::{
     Address, DataType, ValueType, ValueTypeFmt,
 };
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
+pub enum NodeKind {
+    Value(ValueType),
+    Instruction,
+    #[default]
+    Static,
+}
+
 // the data that is passed to
 // the callback for a decoded instruction
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct Node {
     pub string: String,
-    pub value: Option<ValueType>,
+    pub kind: NodeKind,
 }
 
 impl Node {
