@@ -42,9 +42,14 @@ impl Node {
 /// This callback is called for every matched pattern with the final
 /// transformed result. Each context may also pass along a user-data field <T>
 /// which can be used to make the callback work
-pub trait DisasCallback = FnMut(&Node, &Arch, &mut Context) -> FdResult<()>;
+pub trait DisasCallback = FnMut(&Node, &[u8], &Arch, &mut Context) -> FdResult<()>;
 
-pub fn default_callback(node: &Node, _arch: &Arch, _ctx: &mut Context) -> FdResult<()> {
+pub fn default_callback(
+    node: &Node,
+    _raw: &[u8],
+    _arch: &Arch,
+    _ctx: &mut Context,
+) -> FdResult<()> {
     print!("{}", node.string);
     Ok(())
 }
@@ -106,6 +111,17 @@ pub struct AbsOut {
     data_type: DataType,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone)]
+pub struct StaticSizedNode {
+    #[cfg_attr(feature = "serde", serde(default))]
+    node: Node,
+    #[cfg_attr(feature = "serde", serde(default))]
+    offset: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
+    data_type: DataType,
+}
+
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
@@ -119,7 +135,11 @@ pub enum Transform {
     /// AbsXX takes the offset and radix
     Abs(AbsOut),
     CurrentAddress,
+    /// A static node that can be applied at any point
+    /// this node has no attached size
     Static(Node),
+    /// A static node that also has a size attached to it
+    StaticSized(StaticSizedNode),
     /// Defsym takes a string and defines a clear name
     /// for the given value at the requested offset
     DefSym(DefSym),
@@ -157,10 +177,12 @@ impl Transform {
         match self {
             Transform::Abs(ao) => f(
                 &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
+                data,
                 arch,
                 ctx,
             )?,
-            Transform::Static(s) => f(&s, arch, ctx)?,
+            Transform::Static(s) => f(&s, data, arch, ctx)?,
+            Transform::StaticSized(n) => f(&n.node, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
                 Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
@@ -198,6 +220,7 @@ impl Transform {
             Transform::Static(_) => DataType::None,
             Transform::DefSymAddress(_) => addr_type,
             Transform::Consume(_) => DataType::None,
+            Transform::StaticSized(n) => n.data_type,
         }
     }
 
@@ -210,6 +233,7 @@ impl Transform {
             Transform::CurrentAddress => 0,
             Transform::DefSymAddress(ds) => ds.offset,
             Transform::Consume(_) => 0,
+            Transform::StaticSized(n) => n.offset,
         }
     }
 
@@ -222,6 +246,7 @@ impl Transform {
             Transform::Skip => 0,
             Transform::DefSymAddress(_) => 0,
             Transform::Consume(skip) => *skip,
+            Transform::StaticSized(n) => n.data_type.data_len(),
         }
     }
 
@@ -290,7 +315,9 @@ impl Matcher {
         if let Some(tl) = arch.get_transform(&self.transforms) {
             let mut total = 0;
             for t in tl.iter() {
-                total += t.apply(&mut f, &data[total..], arch, ctx)?;
+                let read = t.apply(&mut f, &data[total..], arch, ctx)?;
+                total += read;
+                ctx.offset += read as Address;
             }
             Ok(total)
         } else {
@@ -461,9 +488,7 @@ impl Archs {
                 .archs
                 .get(&ctx.arch_key)
                 .ok_or_else(|| Error::ArchNotFound(ctx.arch_key.clone()))?;
-            let read = arch.match_patterns(&mut f, &data[total..], ctx)?;
-            total += read;
-            ctx.offset += read as Address;
+            total += arch.match_patterns(&mut f, &data[total..], ctx)?;
         }
         Ok(())
     }
