@@ -173,6 +173,13 @@ fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
+fn transform_implied(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, IMPLIED),
+        vec![static_sized_instruction(name.to_owned())],
+    );
+}
+
 fn transforms_default_modes(map: &mut BTreeMap<String, TransformList>) {
     let names = ["adc", "and"];
     add_transforms(map, &names, transform_immediate);
