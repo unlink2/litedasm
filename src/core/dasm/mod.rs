@@ -92,7 +92,7 @@ macro_rules! format_value_type {
 
 impl ValueType {
     pub fn try_to_node(&self, fmt: ValueTypeFmt) -> FdResult<Node> {
-        match self {
+        let node: FdResult<Node> = match self {
             ValueType::U8(v) => format_value_type!(v, fmt),
             ValueType::U16(v) => format_value_type!(v, fmt),
             ValueType::U32(_) => todo!(),
@@ -102,7 +102,10 @@ impl ValueType {
             ValueType::I32(_) => todo!(),
             ValueType::I64(_) => todo!(),
             ValueType::None => Ok(Node::new("None".into())),
-        }
+        };
+        let mut node = node?;
+        node.value = Some(*self);
+        Ok(node)
     }
 }
 

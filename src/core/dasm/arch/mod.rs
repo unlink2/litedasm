@@ -18,11 +18,15 @@ use super::{
 #[derive(Default, Clone)]
 pub struct Node {
     pub string: String,
+    pub value: Option<ValueType>,
 }
 
 impl Node {
     pub fn new(string: String) -> Self {
-        Self { string }
+        Self {
+            string,
+            ..Default::default()
+        }
     }
 }
 
@@ -448,7 +452,9 @@ impl Archs {
                 .archs
                 .get(&ctx.arch_key)
                 .ok_or_else(|| Error::ArchNotFound(ctx.arch_key.clone()))?;
-            total += arch.match_patterns(&mut f, &data[total..], ctx)?;
+            let read = arch.match_patterns(&mut f, &data[total..], ctx)?;
+            total += read;
+            ctx.offset += read as Address;
         }
         Ok(())
     }
