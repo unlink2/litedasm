@@ -84,11 +84,100 @@ fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
+fn transform_absolute(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, ABSOLUTE),
+        vec![
+            Transform::Static(Node::new(format!("{} $", name))),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U16,
+            }),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_absolute_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, ABSOLUTE_X),
+        vec![
+            Transform::Static(Node::new(format!("{} $", name))),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U16,
+            }),
+            Transform::Static(Node::new(", x".into())),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_absolute_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, ABSOLUTE_Y),
+        vec![
+            Transform::Static(Node::new(format!("{} $", name))),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U16,
+            }),
+            Transform::Static(Node::new(", y".into())),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_indirect_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, INDIRECT_X),
+        vec![
+            Transform::Static(Node::new(format!("{} ($", name))),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+            Transform::Static(Node::new(", x)".into())),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
+fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
+    map.insert(
+        format_mode(name, INDIRECT_Y),
+        vec![
+            Transform::Static(Node::new(format!("{} ($", name))),
+            Transform::Abs(AbsOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+            Transform::Static(Node::new("), y".into())),
+            Transform::new_line(),
+            Transform::Consume(1),
+        ],
+    );
+}
+
 fn transforms_default_modes(map: &mut BTreeMap<String, TransformList>) {
     let names = ["adc", "and"];
     add_transforms(map, &names, transform_immediate);
     add_transforms(map, &names, transform_zp);
     add_transforms(map, &names, transform_zp_x);
+    add_transforms(map, &names, transform_absolute);
+    add_transforms(map, &names, transform_absolute_x);
+    add_transforms(map, &names, transform_absolute_y);
+    add_transforms(map, &names, transform_indirect_x);
+    add_transforms(map, &names, transform_indirect_y);
 }
 
 fn transforms() -> BTreeMap<String, TransformList> {

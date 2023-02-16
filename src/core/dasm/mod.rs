@@ -85,7 +85,7 @@ macro_rules! format_value_type {
             ValueTypeFmt::LowerHex(width) => Ok(Node::new(format!("{:0width$x}", $val))),
             ValueTypeFmt::Octal(width) => Ok(Node::new(format!("{:0width$o}", $val))),
             ValueTypeFmt::UpperHex(width) => Ok(Node::new(format!("{:0width$X}", $val))),
-            _ => Err(Error::UnsupportedFormat($fmt)),
+            // _ => Err(Error::UnsupportedFormat($fmt)),
         }
     };
 }
@@ -94,7 +94,7 @@ impl ValueType {
     pub fn try_to_node(&self, fmt: ValueTypeFmt) -> FdResult<Node> {
         match self {
             ValueType::U8(v) => format_value_type!(v, fmt),
-            ValueType::U16(_) => todo!(),
+            ValueType::U16(v) => format_value_type!(v, fmt),
             ValueType::U32(_) => todo!(),
             ValueType::U64(_) => todo!(),
             ValueType::I8(_) => todo!(),
@@ -127,12 +127,32 @@ mod test {
 
     #[test]
     fn a6502() {
+        // byte and immediate
         test_arch_result(
             &a6502::ARCH,
             &[0xFF, 0xaa, 0x69, 0x02, 0x1],
             ".db ff\n.db aa\nadc #$02\n.db 01\n",
         );
 
+        // zero page, x
         test_arch_result(&a6502::ARCH, &[0x75, 0x12], "adc $12, x\n");
+
+        // zero page
+        test_arch_result(&a6502::ARCH, &[0x65, 0x12], "adc $12\n");
+
+        // absolute
+        test_arch_result(&a6502::ARCH, &[0x6D, 0x34, 0x12], "adc $1234\n");
+
+        // absolute, x
+        test_arch_result(&a6502::ARCH, &[0x7D, 0x34, 0x12], "adc $1234, x\n");
+
+        // absolute, y
+        test_arch_result(&a6502::ARCH, &[0x79, 0x34, 0x12], "adc $1234, y\n");
+
+        // indirect, x
+        test_arch_result(&a6502::ARCH, &[0x61, 0x12], "adc ($12, x)\n");
+
+        // indirect, y
+        test_arch_result(&a6502::ARCH, &[0x71, 0x12], "adc ($12), y\n");
     }
 }

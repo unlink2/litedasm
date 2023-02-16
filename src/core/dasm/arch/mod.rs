@@ -147,7 +147,6 @@ impl Transform {
                 arch,
                 ctx,
             )?,
-            // FIXME don't clone the string here...
             Transform::Static(s) => f(&s, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
