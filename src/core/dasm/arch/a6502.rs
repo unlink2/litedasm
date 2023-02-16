@@ -40,15 +40,16 @@ fn static_sized_instruction(name: String) -> Transform {
     })
 }
 
+/// add transforms (m-flag is 1 -> 8bit mode)
 fn add_transforms(
     map: &mut BTreeMap<String, TransformList>,
     names: &[&str],
-    f: fn(map: &mut BTreeMap<String, TransformList>, name: &str),
+    f: fn(map: &mut BTreeMap<String, TransformList>, name: &str, short: DataType),
 ) {
-    names.iter().for_each(|n| f(map, n))
+    names.iter().for_each(|n| f(map, n, DataType::U8))
 }
 
-fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str, short: DataType) {
     map.insert(
         format_mode(name, IMMEDIATE),
         vec![
@@ -56,14 +57,14 @@ fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str) {
             Transform::Abs(AbsOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
-                data_type: DataType::U8,
+                data_type: short,
             }),
             Transform::new_line(),
         ],
     );
 }
 
-fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, ZP),
         vec![
@@ -78,7 +79,7 @@ fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, ZP_X),
         vec![
@@ -94,7 +95,7 @@ fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_absolute(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_absolute(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, ABSOLUTE),
         vec![
@@ -109,7 +110,7 @@ fn transform_absolute(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_absolute_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_absolute_x(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, ABSOLUTE_X),
         vec![
@@ -125,7 +126,7 @@ fn transform_absolute_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_absolute_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_absolute_y(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, ABSOLUTE_Y),
         vec![
@@ -141,7 +142,7 @@ fn transform_absolute_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_indirect_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_indirect_x(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, INDIRECT_X),
         vec![
@@ -157,7 +158,7 @@ fn transform_indirect_x(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, INDIRECT_Y),
         vec![
@@ -173,7 +174,7 @@ fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str) {
     );
 }
 
-fn transform_implied(map: &mut BTreeMap<String, TransformList>, name: &str) {
+fn transform_implied(map: &mut BTreeMap<String, TransformList>, name: &str, _short: DataType) {
     map.insert(
         format_mode(name, IMPLIED),
         vec![static_sized_instruction(name.to_owned())],
