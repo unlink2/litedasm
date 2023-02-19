@@ -211,7 +211,7 @@ fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Exact(op), 0)],
         transforms: mode.into(),
-        name: name.into(),
+        name: Node::new(name.into()),
     })
 }
 
@@ -222,7 +222,7 @@ fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
             PatternAt::new(Pattern::Any, 1),
         ],
         transforms: mode.into(),
-        name: name.into(),
+        name: Node::new(name.into()),
     })
 }
 
@@ -233,7 +233,7 @@ fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
             PatternAt::new(Pattern::Any, 2),
         ],
         transforms: mode.into(),
-        name: name.into(),
+        name: Node::new(name.into()),
     })
 }
 
@@ -284,7 +284,7 @@ fn patterns() -> MatcherList {
     list.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
         transforms: "define_byte".into(),
-        name: ".db".into(),
+        name: Node::new(".db".into()),
     });
     list
 }

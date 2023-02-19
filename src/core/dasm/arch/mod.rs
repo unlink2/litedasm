@@ -160,7 +160,7 @@ impl Transform {
         data: &[u8],
         arch: &Arch,
         ctx: &mut Context,
-        matcher_name: &str,
+        matcher_name: &Node,
     ) -> FdResult<usize> {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
@@ -182,8 +182,7 @@ impl Transform {
                 ctx,
             )?,
             Transform::Static(s) => f(&s, data, arch, ctx)?,
-            // FIXME this clones the matcher name...
-            Transform::MatcherName => f(&Node::new(matcher_name.into()), data, arch, ctx)?,
+            Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
                 Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
@@ -298,7 +297,7 @@ pub struct Matcher {
     // the name of the transform to apply in case of a match
     transforms: String,
     // the name of this matcher
-    name: String,
+    name: Node,
 }
 
 impl Matcher {
