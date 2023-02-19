@@ -314,15 +314,31 @@ impl Matcher {
     ) -> FdResult<usize> {
         if let Some(tl) = arch.get_transform(&self.transforms) {
             let mut total = 0;
-            for t in tl.iter() {
-                let read = t.apply(&mut f, &data[total..], arch, ctx)?;
-                total += read;
-                ctx.offset += read as Address;
-            }
+            total = self.apply(&mut f, data, arch, ctx, total, &arch.pre_transforms)?;
+            total = self.apply(&mut f, data, arch, ctx, total, tl)?;
+            total = self.apply(&mut f, data, arch, ctx, total, &arch.post_transforms)?;
             Ok(total)
         } else {
             Err(Error::TransformNotFound(self.transforms.clone()))
         }
+    }
+
+    fn apply(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+        total: usize,
+        tl: &TransformList,
+    ) -> FdResult<usize> {
+        let mut total = total;
+        for t in tl.iter() {
+            let read = t.apply(f, &data[total..], arch, ctx)?;
+            total += read;
+            ctx.offset += read as Address;
+        }
+        Ok(total)
     }
 }
 
@@ -408,6 +424,8 @@ impl Context {
     }
 }
 
+pub type TransformMap = BTreeMap<String, TransformList>;
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default)]
 pub struct Arch {
@@ -417,7 +435,13 @@ pub struct Arch {
     // a list of named transforms. they can be referenced by the
     // context based on a match result
     #[cfg_attr(feature = "serde", serde(default))]
-    transforms: BTreeMap<String, TransformList>,
+    transforms: TransformMap,
+
+    // transforms that are applied before and after every match
+    #[cfg_attr(feature = "serde", serde(default))]
+    pre_transforms: TransformList,
+    #[cfg_attr(feature = "serde", serde(default))]
+    post_transforms: TransformList,
 
     #[cfg_attr(feature = "serde", serde(default))]
     endianess: Endianess,

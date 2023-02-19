@@ -59,7 +59,6 @@ fn transform_immediate(map: &mut BTreeMap<String, TransformList>, name: &str, sh
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: short,
             }),
-            Transform::new_line(),
         ],
     );
 }
@@ -74,7 +73,6 @@ fn transform_zp(map: &mut BTreeMap<String, TransformList>, name: &str, _short: D
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
             }),
-            Transform::new_line(),
         ],
     );
 }
@@ -90,7 +88,6 @@ fn transform_zp_x(map: &mut BTreeMap<String, TransformList>, name: &str, _short:
                 data_type: DataType::U8,
             }),
             Transform::Static(Node::new(", x".into())),
-            Transform::new_line(),
         ],
     );
 }
@@ -105,7 +102,6 @@ fn transform_absolute(map: &mut BTreeMap<String, TransformList>, name: &str, _sh
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U16,
             }),
-            Transform::new_line(),
         ],
     );
 }
@@ -121,7 +117,6 @@ fn transform_absolute_x(map: &mut BTreeMap<String, TransformList>, name: &str, _
                 data_type: DataType::U16,
             }),
             Transform::Static(Node::new(", x".into())),
-            Transform::new_line(),
         ],
     );
 }
@@ -137,7 +132,6 @@ fn transform_absolute_y(map: &mut BTreeMap<String, TransformList>, name: &str, _
                 data_type: DataType::U16,
             }),
             Transform::Static(Node::new(", y".into())),
-            Transform::new_line(),
         ],
     );
 }
@@ -153,7 +147,6 @@ fn transform_indirect_x(map: &mut BTreeMap<String, TransformList>, name: &str, _
                 data_type: DataType::U8,
             }),
             Transform::Static(Node::new(", x)".into())),
-            Transform::new_line(),
         ],
     );
 }
@@ -169,7 +162,6 @@ fn transform_indirect_y(map: &mut BTreeMap<String, TransformList>, name: &str, _
                 data_type: DataType::U8,
             }),
             Transform::Static(Node::new("), y".into())),
-            Transform::new_line(),
         ],
     );
 }
@@ -193,6 +185,10 @@ fn transforms_default_modes(map: &mut BTreeMap<String, TransformList>) {
     add_transforms(map, &names, transform_indirect_y);
 }
 
+fn transforms_shift(map: &mut BTreeMap<String, TransformList>) {
+    let names = ["asl"];
+}
+
 fn transforms() -> BTreeMap<String, TransformList> {
     let mut map = BTreeMap::default();
 
@@ -205,7 +201,6 @@ fn transforms() -> BTreeMap<String, TransformList> {
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: crate::core::dasm::DataType::U8,
             }),
-            Transform::new_line(),
         ],
     );
     transforms_default_modes(&mut map);
@@ -279,6 +274,7 @@ fn archs() -> BTreeMap<String, Arch> {
         Arch {
             patterns: patterns(),
             transforms: transforms(),
+            post_transforms: vec![Transform::new_line()],
             ..Arch::default()
         },
     );
