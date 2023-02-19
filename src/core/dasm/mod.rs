@@ -170,5 +170,8 @@ mod test {
 
         // indirect, y
         test_arch_result(&a6502::ARCH, &[0x71, 0x12], "00000000 adc ($12), y\n", 2);
+
+        // accumulator
+        test_arch_result(&a6502::ARCH, &[0x0A], "00000000 asl a\n", 1);
     }
 }

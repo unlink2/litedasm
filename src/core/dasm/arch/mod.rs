@@ -111,17 +111,6 @@ pub struct AbsOut {
     data_type: DataType,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, Clone)]
-pub struct StaticSizedNode {
-    #[cfg_attr(feature = "serde", serde(default))]
-    node: Node,
-    #[cfg_attr(feature = "serde", serde(default))]
-    offset: usize,
-    #[cfg_attr(feature = "serde", serde(default))]
-    data_type: DataType,
-}
-
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
@@ -138,8 +127,8 @@ pub enum Transform {
     /// A static node that can be applied at any point
     /// this node has no attached size
     Static(Node),
-    /// A static node that also has a size attached to it
-    StaticSized(StaticSizedNode),
+    /// A node that outputs the matcher's name
+    MatcherName,
     /// Defsym takes a string and defines a clear name
     /// for the given value at the requested offset
     DefSym(DefSym),
@@ -171,6 +160,7 @@ impl Transform {
         data: &[u8],
         arch: &Arch,
         ctx: &mut Context,
+        matcher_name: &str,
     ) -> FdResult<usize> {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
@@ -192,7 +182,8 @@ impl Transform {
                 ctx,
             )?,
             Transform::Static(s) => f(&s, data, arch, ctx)?,
-            Transform::StaticSized(n) => f(&n.node, data, arch, ctx)?,
+            // FIXME this clones the matcher name...
+            Transform::MatcherName => f(&Node::new(matcher_name.into()), data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
                 Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
@@ -236,7 +227,7 @@ impl Transform {
             Transform::Static(_) => DataType::None,
             Transform::DefSymAddress(_) => addr_type,
             Transform::Consume(_) => DataType::None,
-            Transform::StaticSized(n) => n.data_type,
+            Transform::MatcherName => DataType::None,
             Transform::Address(_) => DataType::None,
         }
     }
@@ -250,7 +241,7 @@ impl Transform {
             Transform::CurrentAddress => 0,
             Transform::DefSymAddress(ds) => ds.offset,
             Transform::Consume(_) => 0,
-            Transform::StaticSized(n) => n.offset,
+            Transform::MatcherName => 0,
             Transform::Address(_) => 0,
         }
     }
@@ -264,7 +255,7 @@ impl Transform {
             Transform::Skip => 0,
             Transform::DefSymAddress(_) => 0,
             Transform::Consume(skip) => *skip,
-            Transform::StaticSized(n) => n.data_type.data_len(),
+            Transform::MatcherName => 0,
             Transform::Address(_) => 0,
         }
     }
@@ -306,6 +297,8 @@ pub struct Matcher {
     patterns: Vec<PatternAt>,
     // the name of the transform to apply in case of a match
     transforms: String,
+    // the name of this matcher
+    name: String,
 }
 
 impl Matcher {
@@ -353,7 +346,7 @@ impl Matcher {
     ) -> FdResult<usize> {
         let mut total = total;
         for t in tl.iter() {
-            let read = t.apply(f, &data[total..], arch, ctx)?;
+            let read = t.apply(f, &data[total..], arch, ctx, &self.name)?;
             total += read;
             ctx.offset += read as Address;
         }
