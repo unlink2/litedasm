@@ -237,69 +237,127 @@ fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     })
 }
 
-type MatcherFn = fn(&mut MatcherList, op: u8, name: &str, mode: &str);
-type Ops<'a> = (u8, &'a str);
-
-fn add_matchers(matchers: &mut MatcherList, ops: &[Ops], mode: &str, f: MatcherFn) {
-    ops.iter().for_each(|o| {
-        f(matchers, o.0, o.1, mode);
-    });
+fn matcher_immediate(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, IMMEDIATE);
 }
 
-fn matcher_immediate(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, IMMEDIATE, matcher2);
+fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, ZP);
 }
 
-fn matcher_zp(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ZP, matcher2);
+fn matcher_zp_x(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, ZP_X);
 }
 
-fn matcher_zp_x(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ZP_X, matcher2);
+fn matcher_absolute(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, ABSOLUTE);
 }
 
-fn matcher_absolute(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ABSOLUTE, matcher3);
+fn matcher_absolute_x(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, ABSOLUTE_X);
 }
 
-fn matcher_absolute_x(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ABSOLUTE_X, matcher3);
+fn matcher_absolute_y(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, ABSOLUTE_Y)
 }
 
-fn matcher_absolute_y(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ABSOLUTE_Y, matcher3);
+fn matcher_indirect_x(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, INDIRECT_X);
 }
 
-fn matcher_indirect_x(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, INDIRECT_X, matcher2);
+fn matcher_indirect_y(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, INDIRECT_Y);
 }
 
-fn matcher_indirect_y(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, INDIRECT_Y, matcher2);
+fn matcher_accumulator(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher1(matchers, op, name, ACCUMULATOR);
 }
 
-fn matcher_accumulator(matchers: &mut MatcherList, ops: &[Ops]) {
-    add_matchers(matchers, ops, ACCUMULATOR, matcher1);
+type ModeMap = BTreeMap<&'static str, u8>;
+type InstructionMap = BTreeMap<&'static str, ModeMap>;
+
+// creates a map of all isntructions and their respective
+// modes
+fn instruction_map() -> InstructionMap {
+    InstructionMap::from([
+        (
+            "adc",
+            ModeMap::from([
+                (IMMEDIATE, 0x69),
+                (ZP, 0x65),
+                (ZP_X, 0x75),
+                (ABSOLUTE, 0x6D),
+                (ABSOLUTE_X, 0x7D),
+                (ABSOLUTE_Y, 0x79),
+                (INDIRECT_X, 0x61),
+                (INDIRECT_Y, 0x71),
+            ]),
+        ),
+        (
+            "and",
+            ModeMap::from([
+                (IMMEDIATE, 0x29),
+                (ZP, 0x25),
+                (ZP_X, 0x35),
+                (ABSOLUTE, 0x2D),
+                (ABSOLUTE_X, 0x3D),
+                (ABSOLUTE_Y, 0x39),
+                (INDIRECT_X, 0x21),
+                (INDIRECT_Y, 0x31),
+            ]),
+        ),
+        (
+            "asl",
+            ModeMap::from([
+                (ACCUMULATOR, 0x0A),
+                (ZP, 0x06),
+                (ZP_X, 0x16),
+                (ABSOLUTE, 0x0E),
+                (ABSOLUTE_X, 0x1E),
+            ]),
+        ),
+        ("bit", ModeMap::from([(ZP, 0x24), (ZP_X, 0x2C)])),
+    ])
+}
+
+// converts the instruction map to a list of matchers
+fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
+    for (k, modes) in instrs.iter() {
+        // map all keys to the respective calls
+        if let Some(op) = modes.get(IMMEDIATE) {
+            matcher_immediate(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(ZP) {
+            matcher_zp(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(ZP_X) {
+            matcher_zp_x(matchers, *op, k)
+        }
+        if let Some(op) = modes.get(ABSOLUTE) {
+            matcher_absolute(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(ABSOLUTE_X) {
+            matcher_absolute_x(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(ABSOLUTE_Y) {
+            matcher_absolute_y(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(INDIRECT_X) {
+            matcher_indirect_x(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(INDIRECT_Y) {
+            matcher_indirect_y(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(ACCUMULATOR) {
+            matcher_accumulator(matchers, *op, k);
+        }
+    }
 }
 
 fn patterns() -> MatcherList {
     let mut list = vec![];
 
-    matcher_accumulator(&mut list, &[(0x0A, "asl")]);
-    matcher_immediate(&mut list, &[(0x69, "adc"), (0x29, "and")]);
-    matcher_zp(
-        &mut list,
-        &[(0x65, "adc"), (0x25, "and"), (0x06, "asl"), (0x24, "bit")],
-    );
-    matcher_zp_x(&mut list, &[(0x75, "adc"), (0x35, "and"), (0x16, "asl")]);
-    matcher_absolute(
-        &mut list,
-        &[(0x6D, "adc"), (0x2D, "and"), (0x0E, "asl"), (0x2C, "bit")],
-    );
-    matcher_absolute_x(&mut list, &[(0x7D, "adc"), (0x3D, "and"), (0x1E, "asl")]);
-    matcher_absolute_y(&mut list, &[(0x79, "adc"), (0x39, "and")]);
-    matcher_indirect_x(&mut list, &[(0x61, "adc"), (0x21, "and")]);
-    matcher_indirect_y(&mut list, &[(0x71, "adc"), (0x32, "and")]);
+    matchers_from(&mut list, instruction_map());
 
     list.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
