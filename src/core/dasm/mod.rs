@@ -136,29 +136,39 @@ mod test {
         test_arch_result(
             &a6502::ARCH,
             &[0xFF, 0xaa, 0x69, 0x02, 0x01],
-            ".db ff\n.db aa\nadc #$02\n.db 01\n",
+            "00000000 .db ff\n00000001 .db aa\n00000002 adc #$02\n00000004 .db 01\n",
             0x5,
         );
 
         // zero page, x
-        test_arch_result(&a6502::ARCH, &[0x75, 0x12], "adc $12, x\n", 2);
+        test_arch_result(&a6502::ARCH, &[0x75, 0x12], "00000000 adc $12, x\n", 2);
 
         // zero page
-        test_arch_result(&a6502::ARCH, &[0x65, 0x12], "adc $12\n", 2);
+        test_arch_result(&a6502::ARCH, &[0x65, 0x12], "00000000 adc $12\n", 2);
 
         // absolute
-        test_arch_result(&a6502::ARCH, &[0x6D, 0x34, 0x12], "adc $1234\n", 3);
+        test_arch_result(&a6502::ARCH, &[0x6D, 0x34, 0x12], "00000000 adc $1234\n", 3);
 
         // absolute, x
-        test_arch_result(&a6502::ARCH, &[0x7D, 0x34, 0x12], "adc $1234, x\n", 3);
+        test_arch_result(
+            &a6502::ARCH,
+            &[0x7D, 0x34, 0x12],
+            "00000000 adc $1234, x\n",
+            3,
+        );
 
         // absolute, y
-        test_arch_result(&a6502::ARCH, &[0x79, 0x34, 0x12], "adc $1234, y\n", 3);
+        test_arch_result(
+            &a6502::ARCH,
+            &[0x79, 0x34, 0x12],
+            "00000000 adc $1234, y\n",
+            3,
+        );
 
         // indirect, x
-        test_arch_result(&a6502::ARCH, &[0x61, 0x12], "adc ($12, x)\n", 2);
+        test_arch_result(&a6502::ARCH, &[0x61, 0x12], "00000000 adc ($12, x)\n", 2);
 
         // indirect, y
-        test_arch_result(&a6502::ARCH, &[0x71, 0x12], "adc ($12), y\n", 2);
+        test_arch_result(&a6502::ARCH, &[0x71, 0x12], "00000000 adc ($12), y\n", 2);
     }
 }

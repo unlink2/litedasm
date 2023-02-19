@@ -146,6 +146,8 @@ pub enum Transform {
     DefSymAddress(DefSym),
     // consume n bytes
     Consume(usize),
+    // Outputs the current address with a prefix of n 0s
+    Address(usize),
     #[default]
     Skip,
 }
@@ -153,6 +155,14 @@ pub enum Transform {
 impl Transform {
     pub fn new_line() -> Self {
         Self::Static(Node::new("\n".into()))
+    }
+
+    pub fn tab() -> Self {
+        Self::Static(Node::new("\t".into()))
+    }
+
+    pub fn space(n: usize) -> Self {
+        Self::Static(Node::new(" ".repeat(n).into()))
     }
 
     pub fn apply(
@@ -194,6 +204,12 @@ impl Transform {
             Transform::Skip => (),
             Transform::CurrentAddress => todo!(),
             Transform::Consume(_) => {}
+            Transform::Address(width) => f(
+                &Node::new(format!("{:0width$x}", ctx.address())),
+                data,
+                arch,
+                ctx,
+            )?,
         }
 
         Ok(self.data_len())
@@ -221,6 +237,7 @@ impl Transform {
             Transform::DefSymAddress(_) => addr_type,
             Transform::Consume(_) => DataType::None,
             Transform::StaticSized(n) => n.data_type,
+            Transform::Address(_) => DataType::None,
         }
     }
 
@@ -234,6 +251,7 @@ impl Transform {
             Transform::DefSymAddress(ds) => ds.offset,
             Transform::Consume(_) => 0,
             Transform::StaticSized(n) => n.offset,
+            Transform::Address(_) => 0,
         }
     }
 
@@ -247,6 +265,7 @@ impl Transform {
             Transform::DefSymAddress(_) => 0,
             Transform::Consume(skip) => *skip,
             Transform::StaticSized(n) => n.data_type.data_len(),
+            Transform::Address(_) => 0,
         }
     }
 

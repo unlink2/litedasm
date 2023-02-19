@@ -274,6 +274,7 @@ fn archs() -> BTreeMap<String, Arch> {
         Arch {
             patterns: patterns(),
             transforms: transforms(),
+            pre_transforms: vec![Transform::Address(8), Transform::space(1)],
             post_transforms: vec![Transform::new_line()],
             ..Arch::default()
         },
