@@ -238,48 +238,68 @@ fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
 }
 
 type MatcherFn = fn(&mut MatcherList, op: u8, name: &str, mode: &str);
+type Ops<'a> = (u8, &'a str);
 
-/// creates matchers in the following order:
-/// immediate, zp, zp_x, absolute, absolute_x, absolute_y, indirect_x, indirect_y
-fn matcher_default_modes(
-    matchers: &mut MatcherList,
-    name: &str,
-    ops: [u8; 8],
-    immediate: MatcherFn,
-) {
-    immediate(matchers, ops[0], name, IMMEDIATE);
-    matcher2(matchers, ops[1], name, ZP);
-    matcher2(matchers, ops[2], name, ZP_X);
-    matcher3(matchers, ops[3], name, ABSOLUTE);
-    matcher3(matchers, ops[4], name, ABSOLUTE_X);
-    matcher3(matchers, ops[5], name, ABSOLUTE_Y);
-    matcher2(matchers, ops[6], name, INDIRECT_X);
-    matcher2(matchers, ops[7], name, INDIRECT_Y);
+fn add_matchers(matchers: &mut MatcherList, ops: &[Ops], mode: &str, f: MatcherFn) {
+    ops.iter().for_each(|o| {
+        f(matchers, o.0, o.1, mode);
+    });
 }
 
-fn matcher_logic(matchers: &mut MatcherList, name: &str, ops: [u8; 5]) {
-    matcher1(matchers, ops[0], name, ACCUMULATOR);
-    matcher2(matchers, ops[1], name, ZP);
-    matcher2(matchers, ops[2], name, ZP_X);
-    matcher3(matchers, ops[3], name, ABSOLUTE);
-    matcher3(matchers, ops[4], name, ABSOLUTE_X);
+fn matcher_immediate(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, IMMEDIATE, matcher2);
+}
+
+fn matcher_zp(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ZP, matcher2);
+}
+
+fn matcher_zp_x(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ZP_X, matcher2);
+}
+
+fn matcher_absolute(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ABSOLUTE, matcher3);
+}
+
+fn matcher_absolute_x(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ABSOLUTE_X, matcher3);
+}
+
+fn matcher_absolute_y(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ABSOLUTE_Y, matcher3);
+}
+
+fn matcher_indirect_x(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, INDIRECT_X, matcher2);
+}
+
+fn matcher_indirect_y(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, INDIRECT_Y, matcher2);
+}
+
+fn matcher_accumulator(matchers: &mut MatcherList, ops: &[Ops]) {
+    add_matchers(matchers, ops, ACCUMULATOR, matcher1);
 }
 
 fn patterns() -> MatcherList {
     let mut list = vec![];
-    matcher_default_modes(
+
+    matcher_accumulator(&mut list, &[(0x0A, "asl")]);
+    matcher_immediate(&mut list, &[(0x69, "adc"), (0x29, "and")]);
+    matcher_zp(
         &mut list,
-        "adc",
-        [0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71],
-        matcher2,
+        &[(0x65, "adc"), (0x25, "and"), (0x06, "asl"), (0x24, "bit")],
     );
-    matcher_default_modes(
+    matcher_zp_x(&mut list, &[(0x75, "adc"), (0x35, "and"), (0x16, "asl")]);
+    matcher_absolute(
         &mut list,
-        "and",
-        [0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31],
-        matcher2,
+        &[(0x6D, "adc"), (0x2D, "and"), (0x0E, "asl"), (0x2C, "bit")],
     );
-    matcher_logic(&mut list, "asl", [0x0A, 0x06, 0x16, 0x0E, 0x1E]);
+    matcher_absolute_x(&mut list, &[(0x7D, "adc"), (0x3D, "and"), (0x1E, "asl")]);
+    matcher_absolute_y(&mut list, &[(0x79, "adc"), (0x39, "and")]);
+    matcher_indirect_x(&mut list, &[(0x61, "adc"), (0x21, "and")]);
+    matcher_indirect_y(&mut list, &[(0x71, "adc"), (0x32, "and")]);
 
     list.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
