@@ -53,6 +53,22 @@ fn transform_immediate(map: &mut TransformMap, short: DataType) {
     );
 }
 
+fn transform_relative(map: &mut TransformMap) {
+    map.insert(
+        ZP.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" $".into())),
+            Transform::Abs(AbsOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+            }),
+        ],
+    );
+}
+
 fn transform_zp(map: &mut TransformMap) {
     map.insert(
         ZP.into(),
@@ -188,6 +204,7 @@ fn transforms_default_modes(map: &mut TransformMap) {
     transform_indirect_y(map);
     transform_implied(map);
     transform_accumulator(map);
+    transform_relative(map);
 }
 
 fn transforms() -> TransformMap {
