@@ -111,6 +111,9 @@ pub struct AbsOut {
     data_type: DataType,
 }
 
+// RelOut is the same as AbsOut really
+type RelOut = AbsOut;
+
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
 /// TODO implement transforms for all other possible data types
@@ -123,6 +126,10 @@ pub enum Transform {
     /// from the array
     /// AbsXX takes the offset and radix
     Abs(AbsOut),
+    /// Relative value output.
+    /// Pretty much the same as absolute output, but for
+    /// relative jumps etc
+    Rel(RelOut),
     CurrentAddress,
     /// A static node that can be applied at any point
     /// this node has no attached size
@@ -181,6 +188,12 @@ impl Transform {
                 arch,
                 ctx,
             )?,
+            Transform::Rel(ao) => f(
+                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
+                data,
+                arch,
+                ctx,
+            )?,
             Transform::Static(s) => f(&s, data, arch, ctx)?,
             Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
@@ -219,7 +232,7 @@ impl Transform {
 
     fn data_type(&self, addr_type: DataType) -> DataType {
         match self {
-            Transform::Abs(ao) => ao.data_type,
+            Transform::Abs(ao) | Transform::Rel(ao) => ao.data_type,
             Transform::DefSym(ds) => ds.data_type,
             Transform::Skip => DataType::None,
             Transform::CurrentAddress => DataType::None,
@@ -233,7 +246,7 @@ impl Transform {
 
     fn offset(&self) -> usize {
         match self {
-            Transform::Abs(ao) => ao.offset,
+            Transform::Abs(ao) | Transform::Rel(ao) => ao.offset,
             Transform::Static(_) => 0,
             Transform::DefSym(ds) => ds.offset,
             Transform::Skip => 0,
@@ -247,7 +260,7 @@ impl Transform {
 
     fn data_len(&self) -> usize {
         match self {
-            Transform::Abs(dt) => dt.data_type.data_len(),
+            Transform::Abs(dt) | Transform::Rel(dt) => dt.data_type.data_len(),
             Transform::CurrentAddress => 0,
             Transform::Static(_) => 0,
             Transform::DefSym(_) => 0,
