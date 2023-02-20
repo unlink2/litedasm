@@ -71,9 +71,10 @@ impl SymbolList {
         }
     }
 
-    // get all scoped symbols
-    pub fn get_symbols(&self, key: SymbolKey, address: Address) -> Option<Vec<Symbol>> {
-        todo!();
+    // get all symbols for a specific key
+    // the symbols may not in scope!
+    pub fn get_symbols(&self, key: SymbolKey) -> Option<&[Symbol]> {
+        Some(self.map.get(&key)?.as_slice())
     }
 
     pub fn get_first_symbol(&self, key: SymbolKey, address: Address) -> Option<&Symbol> {
