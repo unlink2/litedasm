@@ -71,10 +71,25 @@ impl SymbolList {
         }
     }
 
-    pub fn get_symbol(&self, key: SymbolKey, address: Address) -> Option<&Symbol> {
+    // get all scoped symbols
+    pub fn get_symbols(&self, key: SymbolKey, address: Address) -> Option<Vec<Symbol>> {
+        todo!();
+    }
+
+    pub fn get_first_symbol(&self, key: SymbolKey, address: Address) -> Option<&Symbol> {
         self.map
             .get(&key)?
             .iter()
             .find(|x| x.scope.is_in_scope(address))
+    }
+
+    // does any symbol in scope exist?
+    pub fn has_symbols(&self, key: SymbolKey, address: Address) -> bool {
+        let iter = self.map.get(&key);
+        if let Some(iter) = iter {
+            iter.iter().find(|x| x.scope.is_in_scope(address)).is_some()
+        } else {
+            false
+        }
     }
 }

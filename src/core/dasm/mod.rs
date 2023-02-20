@@ -95,12 +95,12 @@ impl ValueType {
         let node: FdResult<Node> = match self {
             ValueType::U8(v) => format_value_type!(v, fmt),
             ValueType::U16(v) => format_value_type!(v, fmt),
-            ValueType::U32(_) => todo!(),
-            ValueType::U64(_) => todo!(),
-            ValueType::I8(_) => todo!(),
-            ValueType::I16(_) => todo!(),
-            ValueType::I32(_) => todo!(),
-            ValueType::I64(_) => todo!(),
+            ValueType::U32(v) => format_value_type!(v, fmt),
+            ValueType::U64(v) => format_value_type!(v, fmt),
+            ValueType::I8(v) => format_value_type!(v, fmt),
+            ValueType::I16(v) => format_value_type!(v, fmt),
+            ValueType::I32(v) => format_value_type!(v, fmt),
+            ValueType::I64(v) => format_value_type!(v, fmt),
             ValueType::None => Ok(Node::new("None".into())),
         };
         let mut node = node?;

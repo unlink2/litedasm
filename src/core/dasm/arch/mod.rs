@@ -430,8 +430,8 @@ impl Context {
         self.syms.def_symbol(key, sym);
     }
 
-    pub fn get_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
-        self.syms.get_symbol(key, self.address())
+    pub fn get_first_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
+        self.syms.get_first_symbol(key, self.address())
     }
 }
 

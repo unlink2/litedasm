@@ -23,6 +23,8 @@ const INDIRECT_X: &str = "indirect_x";
 const INDIRECT_Y: &str = "indirect_y";
 const IMPLIED: &str = "implied";
 const ACCUMULATOR: &str = "accumulator";
+// addressing mode for branches
+const RELATIVE: &str = "relative";
 
 fn transform_accumulator(map: &mut TransformMap) {
     map.insert(
