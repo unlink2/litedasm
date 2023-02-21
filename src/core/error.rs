@@ -21,4 +21,6 @@ pub enum Error {
     ArchNotFound(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }

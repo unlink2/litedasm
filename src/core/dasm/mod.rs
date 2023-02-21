@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use crate::prelude::{Error, FdResult};
+use crate::prelude::{Config, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use self::arch::{Arch, Node, NodeKind};
+use self::arch::{a6502, Arch, Archs, Node, NodeKind};
 use lazy_static::lazy_static;
 
 pub mod arch;
@@ -29,10 +29,6 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn is_in_address_space(&self, addr: Address) {
-        todo!()
-    }
-
     pub fn data_len(&self) -> usize {
         match self {
             DataType::U8 => 1,

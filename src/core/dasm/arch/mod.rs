@@ -375,7 +375,7 @@ impl Matcher {
 type MatcherList = Vec<Matcher>;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Copy, Clone)]
 pub enum Endianess {
     // controversial default
     #[default]
@@ -457,7 +457,7 @@ impl Context {
 pub type TransformMap = BTreeMap<String, TransformList>;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Arch {
     // a list of all possible patterns this architecture may match against
     #[cfg_attr(feature = "serde", serde(default))]
@@ -516,7 +516,7 @@ impl Arch {
 
 // a collection of many architectures
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Archs {
     // a list of archs the context may select
     archs: BTreeMap<String, Arch>,
