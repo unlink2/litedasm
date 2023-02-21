@@ -1,6 +1,6 @@
 pub mod a6502;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Display};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,18 @@ impl Node {
             string,
             ..Default::default()
         }
+    }
+}
+
+impl From<&str> for Node {
+    fn from(value: &str) -> Self {
+        Node::new(value.into())
+    }
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.string)
     }
 }
 
@@ -478,7 +490,7 @@ pub struct Arch {
     ///     fmt_dec_pre, fmt_dec_post, fmt_oct_pre, fmt_oct_post,
     ///     fmt_bin_pre, fmt_bin_post
     #[cfg_attr(feature = "serde", serde(default))]
-    pub string_map: BTreeMap<String, String>,
+    pub node_map: BTreeMap<String, Node>,
 }
 
 impl Arch {

@@ -5,6 +5,7 @@ use crate::prelude::{Error, FdResult};
 use serde::{Deserialize, Serialize};
 
 use self::arch::{Arch, Node, NodeKind};
+use lazy_static::lazy_static;
 
 pub mod arch;
 pub mod symbols;
@@ -135,12 +136,14 @@ macro_rules! format_value_type {
     };
 }
 
-static EMPTY_STR: String = String::new();
+lazy_static! {
+    static ref EMPTY_NODE: Node = Node::new(String::new());
+}
 
 impl ValueType {
     pub fn try_to_node(&self, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
-        let pre = arch.string_map.get(fmt.pre()).unwrap_or(&EMPTY_STR);
-        let post = arch.string_map.get(fmt.post()).unwrap_or(&EMPTY_STR);
+        let pre = arch.node_map.get(fmt.pre()).unwrap_or(&EMPTY_NODE);
+        let post = arch.node_map.get(fmt.post()).unwrap_or(&EMPTY_NODE);
         let node: FdResult<Node> = match self {
             ValueType::U8(v) => format_value_type!(v, fmt, pre, post),
             ValueType::U16(v) => format_value_type!(v, fmt, pre, post),
