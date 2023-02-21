@@ -228,5 +228,8 @@ mod test {
 
         // relative
         test_arch_result(&a6502::ARCH, &[0x10, 0x11], "00000000 bpl $11\n", 2);
+
+        // implied
+        test_arch_result(&a6502::ARCH, &[0x00], "00000000 brk\n", 1);
     }
 }

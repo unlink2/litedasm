@@ -307,6 +307,10 @@ fn matcher_relative(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher2(matchers, op, name, RELATIVE);
 }
 
+fn matcher_implied(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher1(matchers, op, name, IMPLIED);
+}
+
 type ModeMap = BTreeMap<&'static str, u8>;
 type InstructionMap = BTreeMap<&'static str, ModeMap>;
 
@@ -356,6 +360,14 @@ fn instruction_map() -> InstructionMap {
         ),
         ("bit", ModeMap::from([(ZP, 0x24), (ZP_X, 0x2C)])),
         relative_instruction_map("bpl", 0x10),
+        relative_instruction_map("bmi", 0x30),
+        relative_instruction_map("bvc", 0x50),
+        relative_instruction_map("bvs", 0x70),
+        relative_instruction_map("bcc", 0x90),
+        relative_instruction_map("bcs", 0xB0),
+        relative_instruction_map("bne", 0xD0),
+        relative_instruction_map("beq", 0xF0),
+        ("brk", ModeMap::from([(IMPLIED, 0x00)])),
     ])
 }
 
@@ -392,6 +404,9 @@ fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
         }
         if let Some(op) = modes.get(RELATIVE) {
             matcher_relative(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(IMPLIED) {
+            matcher_implied(matchers, *op, k);
         }
     }
 }
