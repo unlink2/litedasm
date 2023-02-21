@@ -473,6 +473,10 @@ pub struct Arch {
     /// to allow for prefixing and postfixing of
     /// the output value e.g.
     /// fmt_hex_pre = $ will prefix any hex number with a $ ($4B)
+    /// Valid format type keys:
+    ///     fmt_hex_pre, fmt_hex_post, fmt_HEX_pre, fmt_HEX_post,
+    ///     fmt_dec_pre, fmt_dec_post, fmt_oct_pre, fmt_oct_post,
+    ///     fmt_bin_pre, fmt_bin_post
     #[cfg_attr(feature = "serde", serde(default))]
     pub string_map: BTreeMap<String, String>,
 }
