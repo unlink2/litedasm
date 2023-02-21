@@ -43,7 +43,7 @@ fn transform_immediate(map: &mut TransformMap, short: DataType) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" #$".into())),
+            Transform::Static(Node::new(" #".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -60,7 +60,7 @@ fn transform_relative(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -77,7 +77,7 @@ fn transform_zp(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -94,7 +94,7 @@ fn transform_zp_x(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -112,7 +112,7 @@ fn transform_absolute(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -129,7 +129,7 @@ fn transform_absolute_x(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -147,7 +147,7 @@ fn transform_absolute_y(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" $".into())),
+            Transform::Static(Node::new(" ".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -165,7 +165,7 @@ fn transform_indirect_x(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" ($".into())),
+            Transform::Static(Node::new(" (".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -183,7 +183,7 @@ fn transform_indirect_y(map: &mut TransformMap) {
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
-            Transform::Static(Node::new(" ($".into())),
+            Transform::Static(Node::new(" (".into())),
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
@@ -405,6 +405,10 @@ fn archs() -> BTreeMap<String, Arch> {
             transforms: transforms(),
             pre_transforms: vec![Transform::Address(8), Transform::space(1)],
             post_transforms: vec![Transform::new_line()],
+            value_type_fmt_prefix: BTreeMap::from([
+                (ValueTypeFmt::UpperHex(2), "$".into()),
+                (ValueTypeFmt::LowerHex(2), "$".into()),
+            ]),
             ..Arch::default()
         },
     );

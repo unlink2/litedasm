@@ -183,7 +183,7 @@ impl Transform {
 
         match self {
             Transform::Val(ao) => f(
-                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
+                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt, arch)?,
                 data,
                 arch,
                 ctx,
@@ -466,6 +466,12 @@ pub struct Arch {
     // size of address in bytes for the given architecture
     #[cfg_attr(feature = "serde", serde(default))]
     addr_type: DataType,
+
+    // value types can have a pre and postfix when they are formatted
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub value_type_fmt_prefix: BTreeMap<ValueTypeFmt, String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub value_type_fmt_postfix: BTreeMap<ValueTypeFmt, String>,
 }
 
 impl Arch {

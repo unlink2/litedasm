@@ -2,7 +2,7 @@ use crate::prelude::{Error, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use self::arch::{Node, NodeKind};
+use self::arch::{Arch, Node, NodeKind};
 
 pub mod arch;
 pub mod symbols;
@@ -46,7 +46,7 @@ impl DataType {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ValueTypeFmt {
     Binary(usize),
     Decimal(usize),
@@ -78,29 +78,42 @@ pub enum ValueType {
 }
 
 macro_rules! format_value_type {
-    ($val: expr, $fmt:expr) => {
+    ($val: expr, $fmt:expr, $pre:expr, $post:expr) => {
         match $fmt {
-            ValueTypeFmt::Binary(width) => Ok(Node::new(format!("{:0width$b}", $val))),
-            ValueTypeFmt::Decimal(width) => Ok(Node::new(format!("{:0width$}", $val))),
-            ValueTypeFmt::LowerHex(width) => Ok(Node::new(format!("{:0width$x}", $val))),
-            ValueTypeFmt::Octal(width) => Ok(Node::new(format!("{:0width$o}", $val))),
-            ValueTypeFmt::UpperHex(width) => Ok(Node::new(format!("{:0width$X}", $val))),
-            // _ => Err(Error::UnsupportedFormat($fmt)),
+            ValueTypeFmt::Binary(width) => {
+                Ok(Node::new(format!("{}{:0width$b}{}", $pre, $val, $post)))
+            }
+            ValueTypeFmt::Decimal(width) => {
+                Ok(Node::new(format!("{}{:0width$}{}", $pre, $val, $post)))
+            }
+            ValueTypeFmt::LowerHex(width) => {
+                Ok(Node::new(format!("{}{:0width$x}{}", $pre, $val, $post)))
+            }
+            ValueTypeFmt::Octal(width) => {
+                Ok(Node::new(format!("{}{:0width$o}{}", $pre, $val, $post)))
+            }
+            ValueTypeFmt::UpperHex(width) => {
+                Ok(Node::new(format!("{}{:0width$X}{}", $pre, $val, $post)))
+            } // _ => Err(Error::UnsupportedFormat($fmt)),
         }
     };
 }
 
+static EMPTY_STR: String = String::new();
+
 impl ValueType {
-    pub fn try_to_node(&self, fmt: ValueTypeFmt) -> FdResult<Node> {
+    pub fn try_to_node(&self, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
+        let pre = arch.value_type_fmt_prefix.get(&fmt).unwrap_or(&EMPTY_STR);
+        let post = arch.value_type_fmt_postfix.get(&fmt).unwrap_or(&EMPTY_STR);
         let node: FdResult<Node> = match self {
-            ValueType::U8(v) => format_value_type!(v, fmt),
-            ValueType::U16(v) => format_value_type!(v, fmt),
-            ValueType::U32(v) => format_value_type!(v, fmt),
-            ValueType::U64(v) => format_value_type!(v, fmt),
-            ValueType::I8(v) => format_value_type!(v, fmt),
-            ValueType::I16(v) => format_value_type!(v, fmt),
-            ValueType::I32(v) => format_value_type!(v, fmt),
-            ValueType::I64(v) => format_value_type!(v, fmt),
+            ValueType::U8(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::U16(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::U32(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::U64(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::I8(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::I16(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::I32(v) => format_value_type!(v, fmt, pre, post),
+            ValueType::I64(v) => format_value_type!(v, fmt, pre, post),
             ValueType::None => Ok(Node::new("None".into())),
         };
         let mut node = node?;
@@ -136,7 +149,7 @@ mod test {
         test_arch_result(
             &a6502::ARCH,
             &[0xFF, 0xaa, 0x69, 0x02, 0x01],
-            "00000000 .db ff\n00000001 .db aa\n00000002 adc #$02\n00000004 .db 01\n",
+            "00000000 .db $ff\n00000001 .db $aa\n00000002 adc #$02\n00000004 .db $01\n",
             0x5,
         );
 
