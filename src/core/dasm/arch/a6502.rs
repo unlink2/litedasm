@@ -19,12 +19,31 @@ const ZP_X: &str = "zp_x";
 const ABSOLUTE: &str = "absolute";
 const ABSOLUTE_Y: &str = "absolute_y";
 const ABSOLUTE_X: &str = "absolute_x";
+const INDIRECT: &str = "indirect";
 const INDIRECT_X: &str = "indirect_x";
 const INDIRECT_Y: &str = "indirect_y";
 const IMPLIED: &str = "implied";
 const ACCUMULATOR: &str = "accumulator";
 // addressing mode for branches
 const RELATIVE: &str = "relative";
+
+fn transform_indirect(map: &mut TransformMap) {
+    map.insert(
+        INDIRECT.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" (".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U16,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(")".into())),
+        ],
+    );
+}
 
 fn transform_accumulator(map: &mut TransformMap) {
     map.insert(
@@ -215,6 +234,7 @@ fn transforms_default_modes(map: &mut TransformMap) {
     transform_implied(map);
     transform_accumulator(map);
     transform_relative(map);
+    transform_indirect(map);
 }
 
 fn transforms() -> TransformMap {
@@ -311,6 +331,10 @@ fn matcher_implied(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher1(matchers, op, name, IMPLIED);
 }
 
+fn matcher_indirect(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, INDIRECT);
+}
+
 type ModeMap = BTreeMap<&'static str, u8>;
 type InstructionMap = BTreeMap<&'static str, ModeMap>;
 
@@ -318,46 +342,87 @@ fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'static str, Mo
     (name, ModeMap::from([(RELATIVE, opcode)]))
 }
 
-// creates a map of all isntructions and their respective
-// modes
+fn default_instruction_map(
+    name: &'static str,
+    immediate: u8,
+    zp: u8,
+    zp_x: u8,
+    abs: u8,
+    abs_x: u8,
+    abs_y: u8,
+    ind_x: u8,
+    ind_y: u8,
+) -> (&'static str, ModeMap) {
+    (
+        name,
+        ModeMap::from([
+            (IMMEDIATE, immediate),
+            (ZP, zp),
+            (ZP_X, zp_x),
+            (ABSOLUTE, abs),
+            (ABSOLUTE_X, abs_x),
+            (ABSOLUTE_Y, abs_y),
+            (INDIRECT_X, ind_x),
+            (INDIRECT_Y, ind_y),
+        ]),
+    )
+}
+
+fn compare_index_instruction_map(
+    name: &'static str,
+    immediate: u8,
+    zp: u8,
+    abs: u8,
+) -> (&'static str, ModeMap) {
+    (
+        name,
+        ModeMap::from([(IMMEDIATE, immediate), (ZP, zp), (ABSOLUTE, abs)]),
+    )
+}
+
+fn accumulator_instruction_map(
+    name: &'static str,
+    accumulator: u8,
+    zp: u8,
+    zp_x: u8,
+    abs: u8,
+    abs_x: u8,
+) -> (&'static str, ModeMap) {
+    (
+        name,
+        ModeMap::from([
+            (ACCUMULATOR, accumulator),
+            (ZP, zp),
+            (ZP_X, zp_x),
+            (ABSOLUTE, abs),
+            (ABSOLUTE_X, abs_x),
+        ]),
+    )
+}
+
+fn inc_dec_instruction_map(
+    name: &'static str,
+    zp: u8,
+    zp_x: u8,
+    abs: u8,
+    abs_x: u8,
+) -> (&'static str, ModeMap) {
+    (
+        name,
+        ModeMap::from([(ZP, zp), (ZP_X, zp_x), (ABSOLUTE, abs), (ABSOLUTE_X, abs_x)]),
+    )
+}
+
+fn implied_instruction_map(name: &'static str, op: u8) -> (&'static str, ModeMap) {
+    (name, ModeMap::from([(IMPLIED, op)]))
+}
+
+// creates a map of all instructions and their respective modes
 fn instruction_map() -> InstructionMap {
     InstructionMap::from([
-        (
-            "adc",
-            ModeMap::from([
-                (IMMEDIATE, 0x69),
-                (ZP, 0x65),
-                (ZP_X, 0x75),
-                (ABSOLUTE, 0x6D),
-                (ABSOLUTE_X, 0x7D),
-                (ABSOLUTE_Y, 0x79),
-                (INDIRECT_X, 0x61),
-                (INDIRECT_Y, 0x71),
-            ]),
-        ),
-        (
-            "and",
-            ModeMap::from([
-                (IMMEDIATE, 0x29),
-                (ZP, 0x25),
-                (ZP_X, 0x35),
-                (ABSOLUTE, 0x2D),
-                (ABSOLUTE_X, 0x3D),
-                (ABSOLUTE_Y, 0x39),
-                (INDIRECT_X, 0x21),
-                (INDIRECT_Y, 0x31),
-            ]),
-        ),
-        (
-            "asl",
-            ModeMap::from([
-                (ACCUMULATOR, 0x0A),
-                (ZP, 0x06),
-                (ZP_X, 0x16),
-                (ABSOLUTE, 0x0E),
-                (ABSOLUTE_X, 0x1E),
-            ]),
-        ),
+        default_instruction_map("adc", 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71),
+        default_instruction_map("and", 0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31),
+        accumulator_instruction_map("asl", 0x0A, 0x06, 0x16, 0x0E, 0x1E),
         ("bit", ModeMap::from([(ZP, 0x24), (ZP_X, 0x2C)])),
         relative_instruction_map("bpl", 0x10),
         relative_instruction_map("bmi", 0x30),
@@ -367,7 +432,22 @@ fn instruction_map() -> InstructionMap {
         relative_instruction_map("bcs", 0xB0),
         relative_instruction_map("bne", 0xD0),
         relative_instruction_map("beq", 0xF0),
-        ("brk", ModeMap::from([(IMPLIED, 0x00)])),
+        implied_instruction_map("brk", 0x00),
+        default_instruction_map("cmd", 0xC9, 0xC5, 0xD5, 0xCD, 0xDD, 0xD9, 0xC1, 0xD1),
+        compare_index_instruction_map("cpx", 0xE0, 0xE4, 0xEC),
+        compare_index_instruction_map("cpy", 0xC0, 0xC4, 0xCC),
+        inc_dec_instruction_map("dec", 0xC6, 0xD6, 0xCE, 0xDE),
+        default_instruction_map("eor", 0x49, 0x45, 0x55, 0x4D, 0x5D, 0x59, 0x41, 0x51),
+        implied_instruction_map("clc", 0x18),
+        implied_instruction_map("sec", 0x38),
+        implied_instruction_map("cli", 0x58),
+        implied_instruction_map("sei", 0x78),
+        implied_instruction_map("clv", 0xB8),
+        implied_instruction_map("cld", 0xD8),
+        implied_instruction_map("sed", 0xF8),
+        inc_dec_instruction_map("inc", 0xE6, 0xF6, 0xEE, 0xFE),
+        ("jmp", ModeMap::from([(ABSOLUTE, 0x4C), (INDIRECT, 0x6C)])),
+        ("jsr", ModeMap::from([(ABSOLUTE, 0x4C)])),
     ])
 }
 
@@ -407,6 +487,9 @@ fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
         }
         if let Some(op) = modes.get(IMPLIED) {
             matcher_implied(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(INDIRECT) {
+            matcher_indirect(matchers, *op, k);
         }
     }
 }

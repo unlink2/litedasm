@@ -231,5 +231,13 @@ mod test {
 
         // implied
         test_arch_result(&a6502::ARCH, &[0x00], "00000000 brk\n", 1);
+
+        // indirect
+        test_arch_result(
+            &a6502::ARCH,
+            &[0x6C, 0x34, 0x12],
+            "00000000 jmp ($1234)\n",
+            3,
+        );
     }
 }
