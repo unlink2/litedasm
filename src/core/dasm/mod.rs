@@ -187,8 +187,8 @@ mod test {
         // byte and immediate
         test_arch_result(
             &a6502::ARCH,
-            &[0xFF, 0xaa, 0x69, 0x02, 0x01],
-            "00000000 .db $ff\n00000001 .db $aa\n00000002 adc #$02\n00000004 .db $01\n",
+            &[0xFF, 0xab, 0x69, 0x02, 0x01],
+            "00000000 .db $ff\n00000001 .db $ab\n00000002 adc #$02\n00000004 .db $01\n",
             0x5,
         );
 
@@ -239,5 +239,8 @@ mod test {
             "00000000 jmp ($1234)\n",
             3,
         );
+
+        // zp, y
+        test_arch_result(&a6502::ARCH, &[0xB6, 0x12], "00000000 ldx $12, y\n", 2);
     }
 }

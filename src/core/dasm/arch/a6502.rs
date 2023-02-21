@@ -16,6 +16,7 @@ lazy_static! {
 const IMMEDIATE: &str = "immediate";
 const ZP: &str = "zp";
 const ZP_X: &str = "zp_x";
+const ZP_Y: &str = "zp_y";
 const ABSOLUTE: &str = "absolute";
 const ABSOLUTE_Y: &str = "absolute_y";
 const ABSOLUTE_X: &str = "absolute_x";
@@ -126,6 +127,24 @@ fn transform_zp_x(map: &mut TransformMap) {
     );
 }
 
+fn transform_zp_y(map: &mut TransformMap) {
+    map.insert(
+        ZP_Y.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" ".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", y".into())),
+        ],
+    );
+}
+
 fn transform_absolute(map: &mut TransformMap) {
     map.insert(
         ABSOLUTE.into(),
@@ -226,6 +245,7 @@ fn transforms_default_modes(map: &mut TransformMap) {
     transform_immediate(map, DataType::U8);
     transform_zp(map);
     transform_zp_x(map);
+    transform_zp_y(map);
     transform_absolute(map);
     transform_absolute_x(map);
     transform_absolute_y(map);
@@ -297,6 +317,10 @@ fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
 
 fn matcher_zp_x(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher2(matchers, op, name, ZP_X);
+}
+
+fn matcher_zp_y(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, ZP_Y);
 }
 
 fn matcher_absolute(matchers: &mut MatcherList, op: u8, name: &str) {
@@ -448,46 +472,125 @@ fn instruction_map() -> InstructionMap {
         inc_dec_instruction_map("inc", 0xE6, 0xF6, 0xEE, 0xFE),
         ("jmp", ModeMap::from([(ABSOLUTE, 0x4C), (INDIRECT, 0x6C)])),
         ("jsr", ModeMap::from([(ABSOLUTE, 0x4C)])),
+        default_instruction_map("lda", 0xA9, 0xA5, 0xB5, 0xAD, 0xBD, 0xB9, 0xA1, 0xB1),
+        (
+            "ldx",
+            ModeMap::from([
+                (IMMEDIATE, 0xA2),
+                (ZP, 0xA6),
+                (ZP_Y, 0xB6),
+                (ABSOLUTE, 0xAE),
+                (ABSOLUTE_Y, 0xBE),
+            ]),
+        ),
+        (
+            "ldy",
+            ModeMap::from([
+                (IMMEDIATE, 0xA0),
+                (ZP, 0xA4),
+                (ZP_X, 0xB4),
+                (ABSOLUTE, 0xAC),
+                (ABSOLUTE_X, 0xBC),
+            ]),
+        ),
+        accumulator_instruction_map("lsr", 0x4A, 0x46, 0x56, 0x4E, 0x5E),
+        implied_instruction_map("nop", 0xEA),
+        default_instruction_map("ora", 0x09, 0x05, 0x15, 0x0D, 0x1D, 0x19, 0x01, 0x11),
+        implied_instruction_map("tax", 0xAA),
+        implied_instruction_map("txa", 0xBA),
+        implied_instruction_map("dex", 0xCA),
+        implied_instruction_map("inx", 0xE8),
+        implied_instruction_map("tay", 0xA8),
+        implied_instruction_map("tya", 0x98),
+        implied_instruction_map("dey", 0x88),
+        implied_instruction_map("iny", 0xC8),
+        accumulator_instruction_map("rol", 0x2A, 0x26, 0x36, 0x2E, 0x3E),
+        accumulator_instruction_map("ror", 0x6A, 0x66, 0x76, 0x6E, 0x7E),
+        implied_instruction_map("rti", 0x40),
+        implied_instruction_map("rts", 0x60),
+        default_instruction_map("sbc", 0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1),
+        (
+            "sta",
+            ModeMap::from([
+                (ZP, 0x85),
+                (ZP_X, 0x95),
+                (ABSOLUTE, 0x8D),
+                (ABSOLUTE_X, 0x9D),
+                (ABSOLUTE_Y, 0x99),
+                (INDIRECT_X, 0x81),
+                (INDIRECT_Y, 0x91),
+            ]),
+        ),
+        implied_instruction_map("txs", 0x9A),
+        implied_instruction_map("tsx", 0xBA),
+        implied_instruction_map("pha", 0x48),
+        implied_instruction_map("pla", 0x68),
+        implied_instruction_map("php", 0x08),
+        implied_instruction_map("plp", 0x28),
+        (
+            "stx",
+            ModeMap::from([(ZP, 0x86), (ZP_Y, 0x96), (ABSOLUTE, 0x8E)]),
+        ),
+        (
+            "sty",
+            ModeMap::from([(ZP, 0x84), (ZP_X, 0x94), (ABSOLUTE, 0x8C)]),
+        ),
     ])
 }
 
 // converts the instruction map to a list of matchers
 fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     for (k, modes) in instrs.iter() {
+        // FIXME this is awful to read
         // map all keys to the respective calls
         if let Some(op) = modes.get(IMMEDIATE) {
             matcher_immediate(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(ZP) {
             matcher_zp(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(ZP_X) {
             matcher_zp_x(matchers, *op, k)
         }
+
+        if let Some(op) = modes.get(ZP_Y) {
+            matcher_zp_y(matchers, *op, k)
+        }
+
         if let Some(op) = modes.get(ABSOLUTE) {
             matcher_absolute(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(ABSOLUTE_X) {
             matcher_absolute_x(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(ABSOLUTE_Y) {
             matcher_absolute_y(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(INDIRECT_X) {
             matcher_indirect_x(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(INDIRECT_Y) {
             matcher_indirect_y(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(ACCUMULATOR) {
             matcher_accumulator(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(RELATIVE) {
             matcher_relative(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(IMPLIED) {
             matcher_implied(matchers, *op, k);
         }
+
         if let Some(op) = modes.get(INDIRECT) {
             matcher_indirect(matchers, *op, k);
         }
