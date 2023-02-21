@@ -405,10 +405,11 @@ fn archs() -> BTreeMap<String, Arch> {
             transforms: transforms(),
             pre_transforms: vec![Transform::Address(8), Transform::space(1)],
             post_transforms: vec![Transform::new_line()],
-            value_type_fmt_prefix: BTreeMap::from([
-                (ValueTypeFmt::UpperHex(2), "$".into()),
-                (ValueTypeFmt::LowerHex(2), "$".into()),
+            string_map: BTreeMap::from([
+                (ValueTypeFmt::LowerHex(0).pre().into(), "$".into()),
+                (ValueTypeFmt::UpperHex(0).pre().into(), "$".into()),
             ]),
+
             ..Arch::default()
         },
     );

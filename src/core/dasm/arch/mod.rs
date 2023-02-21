@@ -467,11 +467,14 @@ pub struct Arch {
     #[cfg_attr(feature = "serde", serde(default))]
     addr_type: DataType,
 
-    // value types can have a pre and postfix when they are formatted
+    /// This map can be referenced during
+    /// some phaes of disassembly
+    /// e.g. formatting a value will take fmt_<fmt>_pre and fmt_<fmt>_post
+    /// to allow for prefixing and postfixing of
+    /// the output value e.g.
+    /// fmt_hex_pre = $ will prefix any hex number with a $ ($4B)
     #[cfg_attr(feature = "serde", serde(default))]
-    pub value_type_fmt_prefix: BTreeMap<ValueTypeFmt, String>,
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub value_type_fmt_postfix: BTreeMap<ValueTypeFmt, String>,
+    pub string_map: BTreeMap<String, String>,
 }
 
 impl Arch {

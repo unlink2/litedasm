@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::prelude::{Error, FdResult};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -61,6 +63,40 @@ impl Default for ValueTypeFmt {
     }
 }
 
+impl Display for ValueTypeFmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueTypeFmt::Binary(_) => write!(f, "bin"),
+            ValueTypeFmt::Decimal(_) => write!(f, "dec"),
+            ValueTypeFmt::LowerHex(_) => write!(f, "hex"),
+            ValueTypeFmt::Octal(_) => write!(f, "oct"),
+            ValueTypeFmt::UpperHex(_) => write!(f, "HEX"),
+        }
+    }
+}
+
+impl ValueTypeFmt {
+    pub fn post(&self) -> &str {
+        match self {
+            ValueTypeFmt::Binary(_) => "fmt_bin_post",
+            ValueTypeFmt::Decimal(_) => "fmt_dec_post",
+            ValueTypeFmt::LowerHex(_) => "fmt_hex_post",
+            ValueTypeFmt::Octal(_) => "fmt_oct_post",
+            ValueTypeFmt::UpperHex(_) => "fmt_HEX_post",
+        }
+    }
+
+    pub fn pre(&self) -> &str {
+        match self {
+            ValueTypeFmt::Binary(_) => "fmt_bin_pre",
+            ValueTypeFmt::Decimal(_) => "fmt_dec_pre",
+            ValueTypeFmt::LowerHex(_) => "fmt_hex_pre",
+            ValueTypeFmt::Octal(_) => "fmt_oct_pre",
+            ValueTypeFmt::UpperHex(_) => "fmt_HEX_pre",
+        }
+    }
+}
+
 // The corresponding data type holding a value
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone)]
@@ -103,8 +139,8 @@ static EMPTY_STR: String = String::new();
 
 impl ValueType {
     pub fn try_to_node(&self, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
-        let pre = arch.value_type_fmt_prefix.get(&fmt).unwrap_or(&EMPTY_STR);
-        let post = arch.value_type_fmt_postfix.get(&fmt).unwrap_or(&EMPTY_STR);
+        let pre = arch.string_map.get(fmt.pre()).unwrap_or(&EMPTY_STR);
+        let post = arch.string_map.get(fmt.post()).unwrap_or(&EMPTY_STR);
         let node: FdResult<Node> = match self {
             ValueType::U8(v) => format_value_type!(v, fmt, pre, post),
             ValueType::U16(v) => format_value_type!(v, fmt, pre, post),
