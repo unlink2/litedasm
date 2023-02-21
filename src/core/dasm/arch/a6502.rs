@@ -56,7 +56,7 @@ fn transform_immediate(map: &mut TransformMap, short: DataType) {
 
 fn transform_relative(map: &mut TransformMap) {
     map.insert(
-        ZP.into(),
+        RELATIVE.into(),
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
@@ -65,6 +65,7 @@ fn transform_relative(map: &mut TransformMap) {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                rel: true,
                 ..Default::default()
             }),
         ],
@@ -302,8 +303,16 @@ fn matcher_accumulator(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher1(matchers, op, name, ACCUMULATOR);
 }
 
+fn matcher_relative(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, RELATIVE);
+}
+
 type ModeMap = BTreeMap<&'static str, u8>;
 type InstructionMap = BTreeMap<&'static str, ModeMap>;
+
+fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'static str, ModeMap) {
+    (name, ModeMap::from([(RELATIVE, opcode)]))
+}
 
 // creates a map of all isntructions and their respective
 // modes
@@ -346,6 +355,7 @@ fn instruction_map() -> InstructionMap {
             ]),
         ),
         ("bit", ModeMap::from([(ZP, 0x24), (ZP_X, 0x2C)])),
+        relative_instruction_map("bpl", 0x10),
     ])
 }
 
@@ -379,6 +389,9 @@ fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
         }
         if let Some(op) = modes.get(ACCUMULATOR) {
             matcher_accumulator(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(RELATIVE) {
+            matcher_relative(matchers, *op, k);
         }
     }
 }

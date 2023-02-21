@@ -225,5 +225,8 @@ mod test {
 
         // accumulator
         test_arch_result(&a6502::ARCH, &[0x0A], "00000000 asl a\n", 1);
+
+        // relative
+        test_arch_result(&a6502::ARCH, &[0x10, 0x11], "00000000 bpl $11\n", 2);
     }
 }
