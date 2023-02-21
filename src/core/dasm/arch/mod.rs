@@ -102,17 +102,16 @@ pub struct DefSym {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
-pub struct AbsOut {
+pub struct ValOut {
     #[cfg_attr(feature = "serde", serde(default))]
     offset: usize,
     #[cfg_attr(feature = "serde", serde(default))]
     fmt: ValueTypeFmt,
     #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
+    #[cfg_attr(feature = "serde", serde(default))]
+    rel: bool,
 }
-
-// RelOut is the same as AbsOut really
-type RelOut = AbsOut;
 
 /// A formatter takes an input &[u8] and applies a transform to the data
 /// then it outputs its contents to anything with a dyn Write trait  
@@ -126,11 +125,11 @@ pub enum Transform {
     /// and attempt to read its absolute value at a given offset
     /// from the array
     /// AbsXX takes the offset and radix
-    Abs(AbsOut),
-    /// Relative value output.
-    /// Pretty much the same as absolute output, but for
-    /// relative jumps etc
-    Rel(RelOut),
+    Val(ValOut),
+
+    // Transforms to run if there is a symbol
+    //HasSymbol(AbsOut, Vec<Transform>),
+    //HasNoSymbol(AbsOut, Vec<Transform>),
     CurrentAddress,
     /// A static node that can be applied at any point
     /// this node has no attached size
@@ -183,13 +182,7 @@ impl Transform {
         let dt = self.data_type(arch.addr_type);
 
         match self {
-            Transform::Abs(ao) => f(
-                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
-                data,
-                arch,
-                ctx,
-            )?,
-            Transform::Rel(ao) => f(
+            Transform::Val(ao) => f(
                 &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt)?,
                 data,
                 arch,
@@ -233,7 +226,7 @@ impl Transform {
 
     fn data_type(&self, addr_type: DataType) -> DataType {
         match self {
-            Transform::Abs(ao) | Transform::Rel(ao) => ao.data_type,
+            Transform::Val(ao) => ao.data_type,
             Transform::DefSym(ds) => ds.data_type,
             Transform::Skip => DataType::None,
             Transform::CurrentAddress => DataType::None,
@@ -247,7 +240,7 @@ impl Transform {
 
     fn offset(&self) -> usize {
         match self {
-            Transform::Abs(ao) | Transform::Rel(ao) => ao.offset,
+            Transform::Val(ao) => ao.offset,
             Transform::Static(_) => 0,
             Transform::DefSym(ds) => ds.offset,
             Transform::Skip => 0,
@@ -261,7 +254,7 @@ impl Transform {
 
     fn data_len(&self) -> usize {
         match self {
-            Transform::Abs(dt) | Transform::Rel(dt) => dt.data_type.data_len(),
+            Transform::Val(dt) => dt.data_type.data_len(),
             Transform::CurrentAddress => 0,
             Transform::Static(_) => 0,
             Transform::DefSym(_) => 0,

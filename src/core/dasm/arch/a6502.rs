@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
 use super::{
-    AbsOut, Arch, Matcher, MatcherList, Node, NodeKind, Pattern, PatternAt, Transform,
-    TransformList, TransformMap,
+    Arch, Matcher, MatcherList, Node, NodeKind, Pattern, PatternAt, Transform, TransformList,
+    TransformMap, ValOut,
 };
 use lazy_static::lazy_static;
 
@@ -44,10 +44,11 @@ fn transform_immediate(map: &mut TransformMap, short: DataType) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" #$".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: short,
+                ..Default::default()
             }),
         ],
     );
@@ -60,10 +61,11 @@ fn transform_relative(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                ..Default::default()
             }),
         ],
     );
@@ -76,10 +78,11 @@ fn transform_zp(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                ..Default::default()
             }),
         ],
     );
@@ -92,10 +95,11 @@ fn transform_zp_x(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                ..Default::default()
             }),
             Transform::Static(Node::new(", x".into())),
         ],
@@ -109,10 +113,11 @@ fn transform_absolute(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U16,
+                ..Default::default()
             }),
         ],
     );
@@ -125,10 +130,11 @@ fn transform_absolute_x(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U16,
+                ..Default::default()
             }),
             Transform::Static(Node::new(", x".into())),
         ],
@@ -142,10 +148,11 @@ fn transform_absolute_y(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" $".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U16,
+                ..Default::default()
             }),
             Transform::Static(Node::new(", y".into())),
         ],
@@ -159,10 +166,11 @@ fn transform_indirect_x(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" ($".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                ..Default::default()
             }),
             Transform::Static(Node::new(", x)".into())),
         ],
@@ -176,10 +184,11 @@ fn transform_indirect_y(map: &mut TransformMap) {
             Transform::MatcherName,
             Transform::Consume(1),
             Transform::Static(Node::new(" ($".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: DataType::U8,
+                ..Default::default()
             }),
             Transform::Static(Node::new("), y".into())),
         ],
@@ -214,10 +223,11 @@ fn transforms() -> TransformMap {
         "define_byte".into(),
         vec![
             Transform::Static(Node::new(".db ".into())),
-            Transform::Abs(AbsOut {
+            Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
                 data_type: crate::core::dasm::DataType::U8,
+                ..Default::default()
             }),
         ],
     );
