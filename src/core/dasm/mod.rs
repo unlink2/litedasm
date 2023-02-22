@@ -137,6 +137,22 @@ lazy_static! {
 }
 
 impl ValueType {
+    // convert an address into the corresponding addrress type
+    // this guarantees overflow will be dealt with correctly
+    pub fn from(address: Address, addr_type: DataType) -> Self {
+        match addr_type {
+            DataType::U8 => Self::U8(address as u8),
+            DataType::U16 => Self::U16(address as u16),
+            DataType::U32 => Self::U32(address as u32),
+            DataType::U64 => Self::U64(address as u64),
+            DataType::I8 => Self::I8(address as i8),
+            DataType::I16 => Self::I16(address as i16),
+            DataType::I32 => Self::I32(address as i32),
+            DataType::I64 => Self::I64(address as i64),
+            DataType::None => panic!("Address type cannot be none!"),
+        }
+    }
+
     pub fn try_to_node(&self, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
         let pre = arch.node_map.get(fmt.pre()).unwrap_or(&EMPTY_NODE);
         let post = arch.node_map.get(fmt.post()).unwrap_or(&EMPTY_NODE);

@@ -204,7 +204,7 @@ impl Transform {
                 arch,
                 ctx,
             )?,
-            Transform::Label => {}
+            Transform::Label => self.output_label(f, data, arch, ctx),
             Transform::Static(s) => f(&s, data, arch, ctx)?,
             Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
@@ -229,7 +229,8 @@ impl Transform {
         Ok(self.data_len())
     }
 
-    fn output_label() {}
+    fn output_label(&self, f: &mut dyn DisasCallback, data: &[u8], arch: &Arch, ctx: &mut Context) {
+    }
 
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
         arch.endianess
