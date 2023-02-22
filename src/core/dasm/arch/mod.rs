@@ -110,6 +110,8 @@ pub struct DefSym {
     data_type: DataType,
     #[cfg_attr(feature = "serde", serde(default))]
     symbol_kind: SymbolKind,
+    #[cfg_attr(feature = "serde", serde(default))]
+    rel: bool,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -138,6 +140,8 @@ pub enum Transform {
     /// from the array
     /// AbsXX takes the offset and radix
     Val(ValOut),
+    // output label at current address
+    Label,
 
     // Transforms to run if there is a symbol
     //HasSymbol(AbsOut, Vec<Transform>),
@@ -200,6 +204,7 @@ impl Transform {
                 arch,
                 ctx,
             )?,
+            Transform::Label => {}
             Transform::Static(s) => f(&s, data, arch, ctx)?,
             Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
@@ -224,6 +229,8 @@ impl Transform {
         Ok(self.data_len())
     }
 
+    fn output_label() {}
+
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
         arch.endianess
             .transform(data, arch.addr_type)
@@ -240,41 +247,25 @@ impl Transform {
         match self {
             Transform::Val(ao) => ao.data_type,
             Transform::DefSym(ds) => ds.data_type,
-            Transform::Skip => DataType::None,
-            Transform::CurrentAddress => DataType::None,
-            Transform::Static(_) => DataType::None,
             Transform::DefSymAddress(_) => addr_type,
-            Transform::Consume(_) => DataType::None,
-            Transform::MatcherName => DataType::None,
-            Transform::Address(_) => DataType::None,
+            _ => DataType::None,
         }
     }
 
     fn offset(&self) -> usize {
         match self {
             Transform::Val(ao) => ao.offset,
-            Transform::Static(_) => 0,
             Transform::DefSym(ds) => ds.offset,
-            Transform::Skip => 0,
-            Transform::CurrentAddress => 0,
             Transform::DefSymAddress(ds) => ds.offset,
-            Transform::Consume(_) => 0,
-            Transform::MatcherName => 0,
-            Transform::Address(_) => 0,
+            _ => 0,
         }
     }
 
     fn data_len(&self) -> usize {
         match self {
             Transform::Val(dt) => dt.data_type.data_len(),
-            Transform::CurrentAddress => 0,
-            Transform::Static(_) => 0,
-            Transform::DefSym(_) => 0,
-            Transform::Skip => 0,
-            Transform::DefSymAddress(_) => 0,
             Transform::Consume(skip) => *skip,
-            Transform::MatcherName => 0,
-            Transform::Address(_) => 0,
+            _ => 0,
         }
     }
 
