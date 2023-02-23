@@ -257,6 +257,13 @@ impl Transform {
         let sym_val = if ao.rel {
             let addr: Address = value.clone().into();
             let addr = addr.wrapping_add(ctx.address());
+            // FIXME
+            println!(
+                "{:?} = {:?} + {}",
+                ValueType::from(addr, arch.addr_type),
+                value,
+                ctx.address()
+            );
             ValueType::from(addr, arch.addr_type)
         } else {
             value

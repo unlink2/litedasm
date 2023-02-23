@@ -14,7 +14,7 @@ pub type Address = u64;
 
 /// All possible data types a transform can tranform into
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone)]
+#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Debug)]
 pub enum DataType {
     U8,
     U16,
@@ -96,7 +96,7 @@ impl ValueTypeFmt {
 
 // The corresponding data type holding a value
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone)]
+#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Debug)]
 pub enum ValueType {
     U8(u8),
     U16(u16),
@@ -344,7 +344,7 @@ mod test {
         test_arch_result_ctx(
             &a6502::ARCH,
             &mut ctx,
-            &[0x00, 0x00, 0x00, 0x00],
+            &[0x00, 0x00, 0x00, 0x00, 0x10, (-4_i8) as u8],
             "00000000 brk\n00000001 brk\ntest:\nscoped_test_in:\n00000002 brk\n00000003 brk\n",
             4,
         );
