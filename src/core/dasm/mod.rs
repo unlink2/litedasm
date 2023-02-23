@@ -110,6 +110,22 @@ pub enum ValueType {
     None,
 }
 
+impl Into<Address> for ValueType {
+    fn into(self) -> Address {
+        match self {
+            ValueType::U8(v) => v as Address,
+            ValueType::U16(v) => v as Address,
+            ValueType::U32(v) => v as Address,
+            ValueType::U64(v) => v as Address,
+            ValueType::I8(v) => v as Address,
+            ValueType::I16(v) => v as Address,
+            ValueType::I32(v) => v as Address,
+            ValueType::I64(v) => v as Address,
+            ValueType::None => 0,
+        }
+    }
+}
+
 macro_rules! format_value_type {
     ($val: expr, $fmt:expr, $pre:expr, $post:expr) => {
         match $fmt {

@@ -198,12 +198,7 @@ impl Transform {
         let dt = self.data_type(arch.addr_type);
 
         match self {
-            Transform::Val(ao) => f(
-                &Self::to_value(data, ao.data_type, arch)?.try_to_node(ao.fmt, arch)?,
-                data,
-                arch,
-                ctx,
-            )?,
+            Transform::Val(ao) => self.output_value(f, data, arch, ctx, ao)?,
             Transform::Label => self.output_label(f, data, arch, ctx)?,
             Transform::Static(s) => f(&s, data, arch, ctx)?,
             Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
@@ -247,6 +242,31 @@ impl Transform {
             }
         }
         f(&Node::new(result), data, arch, ctx)
+    }
+
+    fn output_value(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+        ao: &ValOut,
+    ) -> FdResult<()> {
+        let value = Self::to_value(data, ao.data_type, arch)?;
+
+        let sym_val = if ao.rel {
+            let addr: Address = value.clone().into();
+            let addr = addr.wrapping_add(ctx.address());
+            ValueType::from(addr, arch.addr_type)
+        } else {
+            value
+        };
+
+        if let Some(sym) = ctx.get_first_symbol(sym_val) {
+            f(&Node::new(sym.name.to_owned()), data, arch, ctx)
+        } else {
+            f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)
+        }
     }
 
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
