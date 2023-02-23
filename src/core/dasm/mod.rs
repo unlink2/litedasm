@@ -175,7 +175,11 @@ impl ValueType {
 
 #[cfg(test)]
 mod test {
-    use super::{arch::a6502, Address};
+    use super::{
+        arch::{a6502, Context},
+        symbols::{Symbol, SymbolKind},
+        Address,
+    };
     use crate::core::dasm::arch::Archs;
 
     fn test_arch_result(arch: &Archs, data: &[u8], expected: &str, end_addr: Address) {
@@ -189,6 +193,28 @@ mod test {
                 data,
             )
             .unwrap();
+
+        assert_eq!(expected, result);
+        assert_eq!(end_addr, ctx.address())
+    }
+
+    fn test_arch_result_ctx(
+        arch: &Archs,
+        ctx: &mut Context,
+        data: &[u8],
+        expected: &str,
+        end_addr: Address,
+    ) {
+        let mut result = "".to_string();
+        arch.disas_ctx(
+            |n, _raw, _arch, _ctx| {
+                result.push_str(&n.string);
+                Ok(())
+            },
+            data,
+            ctx,
+        )
+        .unwrap();
 
         assert_eq!(expected, result);
         assert_eq!(end_addr, ctx.address())
@@ -254,5 +280,57 @@ mod test {
 
         // zp, y
         test_arch_result(&a6502::ARCH, &[0xB6, 0x12], "00000000 ldx $12, y\n", 2);
+    }
+
+    #[test]
+    fn labels() {
+        let mut ctx = Context::default();
+        ctx.def_symbol(
+            super::ValueType::U16(0x2),
+            Symbol::new(
+                "test".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Global,
+            ),
+        );
+        ctx.def_symbol(
+            super::ValueType::U16(0x2),
+            Symbol::new(
+                "scoped_test_out".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Range(0x00, 0x01),
+            ),
+        );
+        ctx.def_symbol(
+            super::ValueType::U16(0x2),
+            Symbol::new(
+                "scoped_test_in".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Range(0x01, 0x03),
+            ),
+        );
+        ctx.def_symbol(
+            super::ValueType::U16(0x2),
+            Symbol::new(
+                "const_test".into(),
+                SymbolKind::Const,
+                super::symbols::Scope::Range(0x00, 0x01),
+            ),
+        );
+        ctx.def_symbol(
+            super::ValueType::U32(0x2),
+            Symbol::new(
+                "type_test".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Range(0x00, 0x01),
+            ),
+        );
+        test_arch_result_ctx(
+            &a6502::ARCH,
+            &mut ctx,
+            &[0x00, 0x00, 0x00, 0x00],
+            "00000000 brk\n00000001 brk\ntest:\nscoped_test_in:\n00000002 brk\n00000003 brk\n",
+            4,
+        );
     }
 }

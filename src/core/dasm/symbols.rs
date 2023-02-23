@@ -11,7 +11,7 @@ use super::{Address, ValueType};
 pub type SymbolKey = ValueType;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, PartialEq, Eq)]
 pub enum SymbolKind {
     #[default]
     Const,
@@ -39,11 +39,11 @@ impl Scope {
 #[derive(Default, Clone)]
 pub struct Symbol {
     #[cfg_attr(feature = "serde", serde(default))]
-    name: String,
+    pub name: String,
     #[cfg_attr(feature = "serde", serde(default))]
-    kind: SymbolKind,
+    pub kind: SymbolKind,
     #[cfg_attr(feature = "serde", serde(default))]
-    scope: Scope,
+    pub scope: Scope,
 }
 
 impl Symbol {

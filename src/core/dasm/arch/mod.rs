@@ -204,7 +204,7 @@ impl Transform {
                 arch,
                 ctx,
             )?,
-            Transform::Label => self.output_label(f, data, arch, ctx),
+            Transform::Label => self.output_label(f, data, arch, ctx)?,
             Transform::Static(s) => f(&s, data, arch, ctx)?,
             Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
             Transform::DefSym(ds) => ctx.def_symbol(
@@ -229,7 +229,24 @@ impl Transform {
         Ok(self.data_len())
     }
 
-    fn output_label(&self, f: &mut dyn DisasCallback, data: &[u8], arch: &Arch, ctx: &mut Context) {
+    fn output_label(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        let labels = ctx
+            .syms
+            .get_symbols(ValueType::from(ctx.address(), arch.addr_type))
+            .unwrap_or(&[]);
+        let mut result = "".to_owned();
+        for label in labels {
+            if label.scope.is_in_scope(ctx.address()) && label.kind == SymbolKind::Label {
+                result.push_str(&format!("{}:\n", &label.name));
+            }
+        }
+        f(&Node::new(result), data, arch, ctx)
     }
 
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
