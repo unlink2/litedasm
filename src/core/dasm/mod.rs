@@ -299,7 +299,13 @@ mod test {
     }
 
     #[test]
-    fn a65c02() {}
+    fn a65c02() {
+        // ora immediate
+        test_arch_result(&a65c02::ARCH, &[0x09, 0x12], "00000000 ora #$12\n", 2);
+
+        // ora indirect
+        test_arch_result(&a65c02::ARCH, &[0x12, 0x12], "00000000 ora ($12)\n", 2);
+    }
 
     #[test]
     fn labels() {

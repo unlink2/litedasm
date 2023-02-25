@@ -20,7 +20,7 @@ const ZP_Y: &str = "zp_y";
 const ABSOLUTE: &str = "absolute";
 const ABSOLUTE_Y: &str = "absolute_y";
 const ABSOLUTE_X: &str = "absolute_x";
-const INDIRECT: &str = "indirect";
+pub(super) const INDIRECT_JMP: &str = "indirect_jmp";
 const INDIRECT_X: &str = "indirect_x";
 const INDIRECT_Y: &str = "indirect_y";
 const IMPLIED: &str = "implied";
@@ -28,9 +28,9 @@ const ACCUMULATOR: &str = "accumulator";
 // addressing mode for branches
 const RELATIVE: &str = "relative";
 
-fn transform_indirect(map: &mut TransformMap) {
+fn transform_indirect_jmp(map: &mut TransformMap) {
     map.insert(
-        INDIRECT.into(),
+        INDIRECT_JMP.into(),
         vec![
             Transform::MatcherName,
             Transform::Consume(1),
@@ -256,7 +256,7 @@ fn transforms_default_modes(map: &mut TransformMap) {
     transform_implied(map);
     transform_accumulator(map);
     transform_relative(map);
-    transform_indirect(map);
+    transform_indirect_jmp(map);
 }
 
 pub(super) fn transforms() -> TransformMap {
@@ -279,7 +279,7 @@ pub(super) fn transforms() -> TransformMap {
     map
 }
 
-fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+pub(super) fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Exact(op), 0)],
         transforms: mode.into(),
@@ -287,7 +287,7 @@ fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     })
 }
 
-fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+pub(super) fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
@@ -298,7 +298,7 @@ fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     })
 }
 
-fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+pub(super) fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
@@ -357,12 +357,12 @@ fn matcher_implied(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher1(matchers, op, name, IMPLIED);
 }
 
-fn matcher_indirect(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher3(matchers, op, name, INDIRECT);
+fn matcher_indirect_jmp(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, INDIRECT_JMP);
 }
 
-type ModeMap = BTreeMap<&'static str, u8>;
-type InstructionMap = BTreeMap<&'static str, ModeMap>;
+pub(super) type ModeMap = BTreeMap<&'static str, u8>;
+pub(super) type InstructionMap = BTreeMap<&'static str, ModeMap>;
 
 fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'static str, ModeMap) {
     (name, ModeMap::from([(RELATIVE, opcode)]))
@@ -472,7 +472,10 @@ fn instruction_map() -> InstructionMap {
         implied_instruction_map("cld", 0xD8),
         implied_instruction_map("sed", 0xF8),
         inc_dec_instruction_map("inc", 0xE6, 0xF6, 0xEE, 0xFE),
-        ("jmp", ModeMap::from([(ABSOLUTE, 0x4C), (INDIRECT, 0x6C)])),
+        (
+            "jmp",
+            ModeMap::from([(ABSOLUTE, 0x4C), (INDIRECT_JMP, 0x6C)]),
+        ),
         ("jsr", ModeMap::from([(ABSOLUTE, 0x4C)])),
         default_instruction_map("lda", 0xA9, 0xA5, 0xB5, 0xAD, 0xBD, 0xB9, 0xA1, 0xB1),
         (
@@ -541,7 +544,7 @@ fn instruction_map() -> InstructionMap {
 }
 
 // converts the instruction map to a list of matchers
-fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
+pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     for (k, modes) in instrs.iter() {
         // FIXME this is awful to read
         // map all keys to the respective calls
@@ -593,8 +596,8 @@ fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
             matcher_implied(matchers, *op, k);
         }
 
-        if let Some(op) = modes.get(INDIRECT) {
-            matcher_indirect(matchers, *op, k);
+        if let Some(op) = modes.get(INDIRECT_JMP) {
+            matcher_indirect_jmp(matchers, *op, k);
         }
     }
 }
@@ -604,6 +607,10 @@ pub(super) fn patterns() -> MatcherList {
 
     matchers_from(&mut list, instruction_map());
 
+    list
+}
+
+pub(super) fn add_patterns_default(mut list: MatcherList) -> MatcherList {
     list.push(Matcher {
         patterns: vec![PatternAt::new(Pattern::Any, 0)],
         transforms: "define_byte".into(),
@@ -617,7 +624,7 @@ fn archs() -> BTreeMap<String, Arch> {
     map.insert(
         "".into(),
         Arch {
-            patterns: patterns(),
+            patterns: add_patterns_default(patterns()),
             transforms: transforms(),
             pre_transforms: vec![Transform::Label, Transform::Address(8), Transform::space(1)],
             post_transforms: vec![Transform::new_line()],
