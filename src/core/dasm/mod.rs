@@ -310,6 +310,14 @@ mod test {
             ),
         );
         ctx.def_symbol(
+            super::ValueType::U16(0xE),
+            Symbol::new(
+                "test2".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Global,
+            ),
+        );
+        ctx.def_symbol(
             super::ValueType::U16(0x2),
             Symbol::new(
                 "scoped_test_out".into(),
@@ -345,8 +353,16 @@ mod test {
             &a6502::ARCH,
             &mut ctx,
             &[0x00, 0x00, 0x00, 0x00, 0x10, (-4_i8) as u8],
-            "00000000 brk\n00000001 brk\ntest:\nscoped_test_in:\n00000002 brk\n00000003 brk\n",
-            4,
+            "00000000 brk\n00000001 brk\ntest:\nscoped_test_in:\n00000002 brk\n00000003 brk\n00000004 bpl test\n",
+            6,
+        );
+
+        test_arch_result_ctx(
+            &a6502::ARCH,
+            &mut ctx,
+            &[0x4C, 0x0E, 0x00, 0xEA, 0x10, (2_i8) as u8],
+            "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n",
+            12,
         );
     }
 }

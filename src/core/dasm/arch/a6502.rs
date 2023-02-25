@@ -79,15 +79,17 @@ fn transform_relative(map: &mut TransformMap) {
         RELATIVE.into(),
         vec![
             Transform::MatcherName,
-            Transform::Consume(1),
             Transform::Static(Node::new(" ".into())),
+            Transform::OffsetAddress(2),
             Transform::Val(ValOut {
-                offset: 0,
+                offset: 1,
                 fmt: ValueTypeFmt::LowerHex(2),
-                data_type: DataType::U8,
+                data_type: DataType::I8,
                 rel: true,
                 ..Default::default()
             }),
+            Transform::OffsetAddress(-2),
+            Transform::Consume(1),
         ],
     );
 }

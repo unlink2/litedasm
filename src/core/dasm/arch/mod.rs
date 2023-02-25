@@ -160,6 +160,7 @@ pub enum Transform {
     Consume(usize),
     // Outputs the current address with a prefix of n 0s
     Address(usize),
+    OffsetAddress(i64),
     #[default]
     Skip,
 }
@@ -219,6 +220,9 @@ impl Transform {
                 arch,
                 ctx,
             )?,
+            Transform::OffsetAddress(change) => {
+                ctx.offset = ctx.offset.wrapping_add(*change as Address)
+            }
         }
 
         Ok(self.data_len())
@@ -257,13 +261,6 @@ impl Transform {
         let sym_val = if ao.rel {
             let addr: Address = value.clone().into();
             let addr = addr.wrapping_add(ctx.address());
-            // FIXME
-            println!(
-                "{:?} = {:?} + {}",
-                ValueType::from(addr, arch.addr_type),
-                value,
-                ctx.address()
-            );
             ValueType::from(addr, arch.addr_type)
         } else {
             value
@@ -435,7 +432,10 @@ impl Endianess {
             DataType::U32 => ValueType::U32(u32::from_le_bytes(data.try_into().ok()?)),
             DataType::U64 => ValueType::U64(u64::from_le_bytes(data.try_into().ok()?)),
             DataType::None => ValueType::None,
-            _ => todo!(),
+            DataType::I8 => ValueType::I8(i8::from_le_bytes(data.try_into().ok()?)),
+            DataType::I16 => ValueType::I16(i16::from_le_bytes(data.try_into().ok()?)),
+            DataType::I32 => ValueType::I32(i32::from_le_bytes(data.try_into().ok()?)),
+            DataType::I64 => ValueType::I64(i64::from_le_bytes(data.try_into().ok()?)),
         })
     }
 
@@ -446,7 +446,10 @@ impl Endianess {
             DataType::U32 => ValueType::U32(u32::from_be_bytes(data.try_into().ok()?)),
             DataType::U64 => ValueType::U64(u64::from_be_bytes(data.try_into().ok()?)),
             DataType::None => ValueType::None,
-            _ => todo!(),
+            DataType::I8 => ValueType::I8(i8::from_be_bytes(data.try_into().ok()?)),
+            DataType::I16 => ValueType::I16(i16::from_be_bytes(data.try_into().ok()?)),
+            DataType::I32 => ValueType::I32(i32::from_be_bytes(data.try_into().ok()?)),
+            DataType::I64 => ValueType::I64(i64::from_be_bytes(data.try_into().ok()?)),
         })
     }
 }
