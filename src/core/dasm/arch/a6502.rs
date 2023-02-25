@@ -13,20 +13,20 @@ lazy_static! {
     pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
-const IMMEDIATE: &str = "immediate";
-const ZP: &str = "zp";
-const ZP_X: &str = "zp_x";
-const ZP_Y: &str = "zp_y";
-const ABSOLUTE: &str = "absolute";
-const ABSOLUTE_Y: &str = "absolute_y";
-const ABSOLUTE_X: &str = "absolute_x";
+pub(super) const IMMEDIATE: &str = "immediate";
+pub(super) const ZP: &str = "zp";
+pub(super) const ZP_X: &str = "zp_x";
+pub(super) const ZP_Y: &str = "zp_y";
+pub(super) const ABSOLUTE: &str = "absolute";
+pub(super) const ABSOLUTE_Y: &str = "absolute_y";
+pub(super) const ABSOLUTE_X: &str = "absolute_x";
 pub(super) const INDIRECT_JMP: &str = "indirect_jmp";
-const INDIRECT_X: &str = "indirect_x";
-const INDIRECT_Y: &str = "indirect_y";
-const IMPLIED: &str = "implied";
-const ACCUMULATOR: &str = "accumulator";
-// addressing mode for branches
-const RELATIVE: &str = "relative";
+pub(super) const INDIRECT_X: &str = "indirect_x";
+pub(super) const INDIRECT_Y: &str = "indirect_y";
+pub(super) const IMPLIED: &str = "implied";
+pub(super) const ACCUMULATOR: &str = "accumulator";
+// addressing mode for brapubes
+pub(super) const RELATIVE: &str = "relative";
 
 fn transform_indirect_jmp(map: &mut TransformMap) {
     map.insert(
@@ -364,7 +364,7 @@ fn matcher_indirect_jmp(matchers: &mut MatcherList, op: u8, name: &str) {
 pub(super) type ModeMap = BTreeMap<&'static str, u8>;
 pub(super) type InstructionMap = BTreeMap<&'static str, ModeMap>;
 
-fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'static str, ModeMap) {
+pub(super) fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'static str, ModeMap) {
     (name, ModeMap::from([(RELATIVE, opcode)]))
 }
 
@@ -439,7 +439,7 @@ fn inc_dec_instruction_map(
     )
 }
 
-fn implied_instruction_map(name: &'static str, op: u8) -> (&'static str, ModeMap) {
+pub(super) fn implied_instruction_map(name: &'static str, op: u8) -> (&'static str, ModeMap) {
     (name, ModeMap::from([(IMPLIED, op)]))
 }
 
@@ -449,7 +449,7 @@ fn instruction_map() -> InstructionMap {
         default_instruction_map("adc", 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71),
         default_instruction_map("and", 0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31),
         accumulator_instruction_map("asl", 0x0A, 0x06, 0x16, 0x0E, 0x1E),
-        ("bit", ModeMap::from([(ZP, 0x24), (ZP_X, 0x2C)])),
+        ("bit", ModeMap::from([(ABSOLUTE, 0x24), (ZP, 0x2C)])),
         relative_instruction_map("bpl", 0x10),
         relative_instruction_map("bmi", 0x30),
         relative_instruction_map("bvc", 0x50),

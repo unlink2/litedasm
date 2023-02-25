@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use super::dasm::arch::{a6502, Archs};
+use super::dasm::arch::{a6502, a65c02, Archs};
 use crate::prelude::FdResult;
 #[cfg(feature = "cli")]
 use clap::{CommandFactory, Parser, ValueEnum};
@@ -21,6 +21,7 @@ lazy_static! {
 pub enum ArchKind {
     #[default]
     Arch6502,
+    Arch65c02,
     ArchCustom,
 }
 
@@ -28,6 +29,7 @@ impl ArchKind {
     pub fn to_arch(&self, _cfg: &Config) -> FdResult<Archs> {
         Ok(match self {
             ArchKind::Arch6502 => a6502::ARCH.to_owned(),
+            ArchKind::Arch65c02 => a65c02::ARCH.to_owned(),
             ArchKind::ArchCustom => todo!("Custom archs are not yet supported!"),
         })
     }
@@ -38,6 +40,7 @@ impl Display for ArchKind {
         match self {
             ArchKind::Arch6502 => write!(f, "arch6502"),
             ArchKind::ArchCustom => write!(f, "archCustom"),
+            ArchKind::Arch65c02 => write!(f, "arch65c02"),
         }
     }
 }

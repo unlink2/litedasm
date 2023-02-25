@@ -305,6 +305,14 @@ mod test {
 
         // ora indirect
         test_arch_result(&a65c02::ARCH, &[0x12, 0x12], "00000000 ora ($12)\n", 2);
+
+        // jmp (abs, x)
+        test_arch_result(
+            &a65c02::ARCH,
+            &[0x7C, 0x34, 0x12],
+            "00000000 jmp ($1234, x)\n",
+            3,
+        );
     }
 
     #[test]
