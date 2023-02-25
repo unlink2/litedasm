@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use crate::prelude::{Config, FdResult};
+use crate::prelude::FdResult;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use self::arch::{a6502, Arch, Archs, Node, NodeKind};
+use self::arch::{Arch, Node, NodeKind};
 use lazy_static::lazy_static;
 
 pub mod arch;
@@ -192,7 +192,7 @@ impl ValueType {
 #[cfg(test)]
 mod test {
     use super::{
-        arch::{a6502, Context},
+        arch::{a6502, a65c02, Context},
         symbols::{Symbol, SymbolKind},
         Address,
     };
@@ -297,6 +297,9 @@ mod test {
         // zp, y
         test_arch_result(&a6502::ARCH, &[0xB6, 0x12], "00000000 ldx $12, y\n", 2);
     }
+
+    #[test]
+    fn a65c02() {}
 
     #[test]
     fn labels() {

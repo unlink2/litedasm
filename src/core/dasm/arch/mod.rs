@@ -1,4 +1,5 @@
 pub mod a6502;
+pub mod a65c02;
 
 use std::{collections::BTreeMap, fmt::Display};
 

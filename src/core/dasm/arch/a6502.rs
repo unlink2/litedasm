@@ -259,7 +259,7 @@ fn transforms_default_modes(map: &mut TransformMap) {
     transform_indirect(map);
 }
 
-fn transforms() -> TransformMap {
+pub(super) fn transforms() -> TransformMap {
     let mut map = BTreeMap::default();
 
     map.insert(
@@ -599,7 +599,7 @@ fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     }
 }
 
-fn patterns() -> MatcherList {
+pub(super) fn patterns() -> MatcherList {
     let mut list = vec![];
 
     matchers_from(&mut list, instruction_map());
