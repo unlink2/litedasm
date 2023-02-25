@@ -290,13 +290,52 @@ pub(super) fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &st
     })
 }
 
-pub(super) fn matcher2_immediate(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+pub(super) fn matcher_immediate_no_mx(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![
             PatternAt::new(Pattern::Exact(op), 0),
             PatternAt::new(Pattern::Any, 1),
             PatternAt::new(Pattern::Flag(FLAG_M.into(), None), 0),
             PatternAt::new(Pattern::Flag(FLAG_X.into(), None), 0),
+        ],
+        transforms: mode.into(),
+        name: Node::new(name.into()),
+    })
+}
+
+pub(super) fn matcher_immediate_m(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
+        patterns: vec![
+            PatternAt::new(Pattern::Exact(op), 0),
+            PatternAt::new(Pattern::Any, 2),
+            PatternAt::new(Pattern::Flag(FLAG_M.into(), Some("".into())), 0),
+            PatternAt::new(Pattern::Flag(FLAG_X.into(), None), 0),
+        ],
+        transforms: mode.into(),
+        name: Node::new(name.into()),
+    })
+}
+
+pub(super) fn matcher_immediate_x(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
+        patterns: vec![
+            PatternAt::new(Pattern::Exact(op), 0),
+            PatternAt::new(Pattern::Any, 2),
+            PatternAt::new(Pattern::Flag(FLAG_M.into(), None), 0),
+            PatternAt::new(Pattern::Flag(FLAG_X.into(), Some("".into())), 0),
+        ],
+        transforms: mode.into(),
+        name: Node::new(name.into()),
+    })
+}
+
+pub(super) fn matcher_immediate_mx(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
+        patterns: vec![
+            PatternAt::new(Pattern::Exact(op), 0),
+            PatternAt::new(Pattern::Any, 2),
+            PatternAt::new(Pattern::Flag(FLAG_M.into(), Some("".into())), 0),
+            PatternAt::new(Pattern::Flag(FLAG_X.into(), Some("".into())), 0),
         ],
         transforms: mode.into(),
         name: Node::new(name.into()),
@@ -325,8 +364,13 @@ pub(super) fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &st
     })
 }
 
+// creates matchers for 6502 and the 65816 because it is easier to just include
+// those here too
 fn matcher_immediate(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher2_immediate(matchers, op, name, IMMEDIATE);
+    matcher_immediate_no_mx(matchers, op, name, IMMEDIATE);
+    matcher_immediate_m(matchers, op, name, IMMEDIATE);
+    matcher_immediate_x(matchers, op, name, IMMEDIATE);
+    matcher_immediate_mx(matchers, op, name, IMMEDIATE);
 }
 
 fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
