@@ -338,7 +338,15 @@ mod test {
             Symbol::new(
                 "const_test".into(),
                 SymbolKind::Const,
-                super::symbols::Scope::Range(0x00, 0x01),
+                super::symbols::Scope::Global,
+            ),
+        );
+        ctx.def_symbol(
+            super::ValueType::U8(0x2),
+            Symbol::new(
+                "const_test_u8".into(),
+                SymbolKind::Const,
+                super::symbols::Scope::Global,
             ),
         );
         ctx.def_symbol(
@@ -360,9 +368,9 @@ mod test {
         test_arch_result_ctx(
             &a6502::ARCH,
             &mut ctx,
-            &[0x4C, 0x0E, 0x00, 0xEA, 0x10, (2_i8) as u8],
-            "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n",
-            12,
+            &[0x4C, 0x0E, 0x00, 0xEA, 0x10, (2_i8) as u8, 0xA9, 0x2],
+            "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n0000000c lda #const_test_u8\n",
+            14,
         );
     }
 }
