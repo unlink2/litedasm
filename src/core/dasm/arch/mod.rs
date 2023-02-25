@@ -78,6 +78,8 @@ pub enum Pattern {
     Any,
     // Match an address range from 0..1
     Address(Address, Address),
+    // check if a flag has a certain value
+    Flag(String, Option<String>),
     #[default]
     Never,
 }
@@ -91,6 +93,7 @@ impl Pattern {
             Self::Address(start, end) => ctx.address() >= *start && ctx.address() < *end,
             Self::Any => true,
             Self::Never => false,
+            Self::Flag(key, value) => ctx.flags.get(key) == value.as_ref(),
         }
     }
 }
@@ -163,6 +166,8 @@ pub enum Transform {
     // Outputs the current address with a prefix of n 0s
     Address(usize),
     OffsetAddress(i64),
+    SetFlag(String, String),
+    UnsetFlag(String),
     #[default]
     Skip,
 }
@@ -224,6 +229,12 @@ impl Transform {
             )?,
             Transform::OffsetAddress(change) => {
                 ctx.offset = ctx.offset.wrapping_add(*change as Address)
+            }
+            Transform::SetFlag(key, value) => {
+                ctx.flags.insert(key.to_owned(), value.to_owned());
+            }
+            Transform::UnsetFlag(key) => {
+                ctx.flags.remove(key);
             }
         }
 
@@ -464,6 +475,9 @@ pub struct Context {
     // which architecture to use
     #[cfg_attr(feature = "serde", serde(default))]
     arch_key: String,
+    // a list of flags that can be set or unset using transforms
+    #[cfg_attr(feature = "serde", serde(default))]
+    flags: BTreeMap<String, String>,
     #[cfg_attr(feature = "serde", serde(default))]
     org: Address,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -476,6 +490,7 @@ impl Context {
     pub fn new(org: Address, syms: SymbolList) -> Self {
         Self {
             arch_key: "".into(),
+            flags: Default::default(),
             org,
             syms,
             offset: 0,

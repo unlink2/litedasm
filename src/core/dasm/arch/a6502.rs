@@ -28,6 +28,9 @@ pub(super) const ACCUMULATOR: &str = "accumulator";
 // addressing mode for brapubes
 pub(super) const RELATIVE: &str = "relative";
 
+pub(super) const FLAG_M: &str = "m";
+pub(super) const FLAG_X: &str = "x";
+
 fn transform_indirect_jmp(map: &mut TransformMap) {
     map.insert(
         INDIRECT_JMP.into(),
@@ -287,6 +290,19 @@ pub(super) fn matcher1(matchers: &mut MatcherList, op: u8, name: &str, mode: &st
     })
 }
 
+pub(super) fn matcher2_immediate(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
+    matchers.push(Matcher {
+        patterns: vec![
+            PatternAt::new(Pattern::Exact(op), 0),
+            PatternAt::new(Pattern::Any, 1),
+            PatternAt::new(Pattern::Flag(FLAG_M.into(), None), 0),
+            PatternAt::new(Pattern::Flag(FLAG_X.into(), None), 0),
+        ],
+        transforms: mode.into(),
+        name: Node::new(name.into()),
+    })
+}
+
 pub(super) fn matcher2(matchers: &mut MatcherList, op: u8, name: &str, mode: &str) {
     matchers.push(Matcher {
         patterns: vec![
@@ -310,7 +326,7 @@ pub(super) fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &st
 }
 
 fn matcher_immediate(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher2(matchers, op, name, IMMEDIATE);
+    matcher2_immediate(matchers, op, name, IMMEDIATE);
 }
 
 fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
