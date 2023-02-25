@@ -134,7 +134,7 @@ pub(super) fn patterns() -> MatcherList {
     list
 }
 
-fn archs() -> BTreeMap<String, Arch> {
+pub(super) fn archs() -> BTreeMap<String, Arch> {
     let mut map = BTreeMap::default();
     map.insert(
         "".into(),
