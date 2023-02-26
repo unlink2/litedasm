@@ -93,7 +93,7 @@ impl Pattern {
             Self::Address(start, end) => ctx.address() >= *start && ctx.address() < *end,
             Self::Any => true,
             Self::Never => false,
-            Self::Flag(key, value) => ctx.flags.get(key) == value.as_ref(),
+            Self::Flag(key, value) => ctx.get_flag(key) == value.as_ref(),
         }
     }
 }
@@ -168,6 +168,7 @@ pub enum Transform {
     OffsetAddress(i64),
     SetFlag(String, String),
     UnsetFlag(String),
+    ChangeArch(String),
     #[default]
     Skip,
 }
@@ -231,11 +232,12 @@ impl Transform {
                 ctx.offset = ctx.offset.wrapping_add(*change as Address)
             }
             Transform::SetFlag(key, value) => {
-                ctx.flags.insert(key.to_owned(), value.to_owned());
+                ctx.def_flag(key, value);
             }
             Transform::UnsetFlag(key) => {
-                ctx.flags.remove(key);
+                ctx.undef_flag(key);
             }
+            Transform::ChangeArch(val) => ctx.arch_key = val.to_owned(),
         }
 
         Ok(self.data_len())
