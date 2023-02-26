@@ -13,10 +13,10 @@ lazy_static! {
     pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
-pub(super) const IMMEDIATE: &str = "immediate";
-pub(super) const IMMEDIATE_M: &str = "immediate_m";
-pub(super) const IMMEDIATE_X: &str = "immediate_no_x";
-pub(super) const IMMEDIATE_NO_X: &str = "immediate_x";
+pub(super) const IMMEDIATE_NO_M_FLAG: &str = "immediate_no_m_flag";
+pub(super) const IMMEDIATE_M_FLAG: &str = "immediate_m_flag";
+pub(super) const IMMEDIATE_X_FLAG: &str = "immediate_no_x_flag";
+pub(super) const IMMEDIATE_NO_X_FLAG: &str = "immediate_x_flag";
 pub(super) const ZP: &str = "zp";
 pub(super) const ZP_X: &str = "zp_x";
 pub(super) const ZP_Y: &str = "zp_y";
@@ -250,10 +250,10 @@ fn transform_implied(map: &mut TransformMap) {
 }
 
 fn transforms_default_modes(map: &mut TransformMap) {
-    transform_immediate(map, DataType::U8, IMMEDIATE);
-    transform_immediate(map, DataType::U16, IMMEDIATE_M);
-    transform_immediate(map, DataType::U16, IMMEDIATE_X);
-    transform_immediate(map, DataType::U8, IMMEDIATE_NO_X);
+    transform_immediate(map, DataType::U8, IMMEDIATE_NO_M_FLAG);
+    transform_immediate(map, DataType::U16, IMMEDIATE_M_FLAG);
+    transform_immediate(map, DataType::U16, IMMEDIATE_X_FLAG);
+    transform_immediate(map, DataType::U8, IMMEDIATE_NO_X_FLAG);
     transform_zp(map);
     transform_zp_x(map);
     transform_zp_y(map);
@@ -369,19 +369,19 @@ pub(super) fn matcher3(matchers: &mut MatcherList, op: u8, name: &str, mode: &st
 // creates matchers for 6502 and the 65816 because it is easier to just include
 // those here too
 fn matcher_immediate_m_flag(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher_immediate_m(matchers, op, name, IMMEDIATE_M);
+    matcher_immediate_m(matchers, op, name, IMMEDIATE_M_FLAG);
 }
 
 fn matcher_immediate_no_m_flag(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher_immediate_no_m(matchers, op, name, IMMEDIATE);
+    matcher_immediate_no_m(matchers, op, name, IMMEDIATE_NO_M_FLAG);
 }
 
 fn matcher_immediate_x_flag(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher_immediate_x(matchers, op, name, IMMEDIATE_X);
+    matcher_immediate_x(matchers, op, name, IMMEDIATE_X_FLAG);
 }
 
 fn matcher_immediate_no_x_flag(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher_immediate_no_x(matchers, op, name, IMMEDIATE_NO_X);
+    matcher_immediate_no_x(matchers, op, name, IMMEDIATE_NO_X_FLAG);
 }
 
 fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
@@ -453,8 +453,8 @@ fn default_instruction_map(
     (
         name,
         ModeMap::from([
-            (IMMEDIATE, immediate),
-            (IMMEDIATE_M, immediate),
+            (IMMEDIATE_M_FLAG, immediate),
+            (IMMEDIATE_NO_M_FLAG, immediate),
             (ZP, zp),
             (ZP_X, zp_x),
             (ABSOLUTE, abs),
@@ -474,7 +474,12 @@ fn compare_index_instruction_map(
 ) -> (&'static str, ModeMap) {
     (
         name,
-        ModeMap::from([(IMMEDIATE, immediate), (ZP, zp), (ABSOLUTE, abs)]),
+        ModeMap::from([
+            (IMMEDIATE_NO_X_FLAG, immediate),
+            (IMMEDIATE_X_FLAG, immediate),
+            (ZP, zp),
+            (ABSOLUTE, abs),
+        ]),
     )
 }
 
@@ -553,8 +558,8 @@ fn instruction_map() -> InstructionMap {
         (
             "ldx",
             ModeMap::from([
-                (IMMEDIATE_X, 0xA2),
-                (IMMEDIATE_NO_X, 0xA2),
+                (IMMEDIATE_X_FLAG, 0xA2),
+                (IMMEDIATE_NO_X_FLAG, 0xA2),
                 (ZP, 0xA6),
                 (ZP_Y, 0xB6),
                 (ABSOLUTE, 0xAE),
@@ -564,8 +569,8 @@ fn instruction_map() -> InstructionMap {
         (
             "ldy",
             ModeMap::from([
-                (IMMEDIATE_X, 0xA0),
-                (IMMEDIATE_NO_X, 0xA0),
+                (IMMEDIATE_X_FLAG, 0xA0),
+                (IMMEDIATE_NO_X_FLAG, 0xA0),
                 (ZP, 0xA4),
                 (ZP_X, 0xB4),
                 (ABSOLUTE, 0xAC),
@@ -622,16 +627,16 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
     for (k, modes) in instrs.iter() {
         // FIXME this is awful to read
         // map all keys to the respective calls
-        if let Some(op) = modes.get(IMMEDIATE) {
+        if let Some(op) = modes.get(IMMEDIATE_NO_M_FLAG) {
             matcher_immediate_no_m_flag(matchers, *op, k);
         }
-        if let Some(op) = modes.get(IMMEDIATE_M) {
+        if let Some(op) = modes.get(IMMEDIATE_M_FLAG) {
             matcher_immediate_m_flag(matchers, *op, k);
         }
-        if let Some(op) = modes.get(IMMEDIATE_X) {
+        if let Some(op) = modes.get(IMMEDIATE_X_FLAG) {
             matcher_immediate_x_flag(matchers, *op, k);
         }
-        if let Some(op) = modes.get(IMMEDIATE_NO_X) {
+        if let Some(op) = modes.get(IMMEDIATE_NO_X_FLAG) {
             matcher_immediate_no_x_flag(matchers, *op, k);
         }
         if let Some(op) = modes.get(ZP) {

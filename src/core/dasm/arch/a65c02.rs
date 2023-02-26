@@ -5,7 +5,8 @@ use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 use super::{
     a6502::{
         implied_instruction_map, matcher2, matcher3, relative_instruction_map, InstructionMap,
-        ModeMap, ABSOLUTE, ABSOLUTE_X, ACCUMULATOR, IMMEDIATE, ZP, ZP_X,
+        ModeMap, ABSOLUTE, ABSOLUTE_X, ACCUMULATOR, IMMEDIATE_M_FLAG, IMMEDIATE_NO_M_FLAG, ZP,
+        ZP_X,
     },
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };
@@ -83,7 +84,12 @@ fn instruction_map() -> InstructionMap {
         indirect_instruction_map("sbc", 0xF2),
         (
             "bit",
-            ModeMap::from([(IMMEDIATE, 0x89), (ZP_X, 0x34), (ABSOLUTE_X, 0x3C)]),
+            ModeMap::from([
+                (IMMEDIATE_NO_M_FLAG, 0x89),
+                (IMMEDIATE_M_FLAG, 0x89),
+                (ZP_X, 0x34),
+                (ABSOLUTE_X, 0x3C),
+            ]),
         ),
         ("dec", ModeMap::from([(ACCUMULATOR, 0x3A)])),
         ("inc", ModeMap::from([(ACCUMULATOR, 0x1A)])),
