@@ -192,7 +192,7 @@ impl ValueType {
 #[cfg(test)]
 mod test {
     use super::{
-        arch::{a6502, a65c02, Context},
+        arch::{a6502, a65c02, a65c816, Context},
         symbols::{Symbol, SymbolKind},
         Address,
     };
@@ -245,6 +245,9 @@ mod test {
             "00000000 .db $ff\n00000001 .db $ab\n00000002 adc #$02\n00000004 .db $01\n",
             0x5,
         );
+
+        // immediate_x flag
+        test_arch_result(&a6502::ARCH, &[0xA2, 0x12], "00000000 ldx #$12\n", 2);
 
         // zero page, x
         test_arch_result(&a6502::ARCH, &[0x75, 0x12], "00000000 adc $12, x\n", 2);
@@ -313,6 +316,37 @@ mod test {
             "00000000 jmp ($1234, x)\n",
             3,
         );
+    }
+
+    #[test]
+    fn a65c816() {
+        // immediate m-flag set
+        {
+            let mut ctx = Context::default();
+            ctx.def_flag("m", "");
+
+            test_arch_result_ctx(
+                &a65c816::ARCH,
+                &mut ctx,
+                &[0xA2, 0x12, 0xA9, 0x34, 0x12],
+                "00000000 ldx #$12\n00000002 lda #$1234\n",
+                5,
+            );
+        }
+        // immediate x-flag set
+
+        {
+            let mut ctx = Context::default();
+            ctx.def_flag("x", "");
+
+            test_arch_result_ctx(
+                &a65c816::ARCH,
+                &mut ctx,
+                &[0xA2, 0x34, 0x12, 0xA9, 0x34],
+                "00000000 ldx #$1234\n00000003 lda #$34\n",
+                5,
+            );
+        }
     }
 
     #[test]

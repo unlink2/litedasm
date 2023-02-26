@@ -508,6 +508,18 @@ impl Context {
     pub fn get_first_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
         self.syms.get_first_symbol(key, self.address())
     }
+
+    pub fn def_flag(&mut self, flag: &str, value: &str) {
+        self.flags.insert(flag.into(), value.into());
+    }
+
+    pub fn undef_flag(&mut self, flag: &str) {
+        self.flags.remove(flag);
+    }
+
+    pub fn get_flag(&self, flag: &str) -> Option<&String> {
+        self.flags.get(flag)
+    }
 }
 
 pub type TransformMap = BTreeMap<String, TransformList>;
