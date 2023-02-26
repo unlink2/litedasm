@@ -11,6 +11,16 @@ lazy_static! {
     pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
+pub(super) const ABSOLUTE24: &str = "absolute24";
+pub(super) const DIRECT24: &str = "direct24"; // [DIRECT]
+pub(super) const INDIRECT_Y24: &str = "indirect_y24"; // [DIRECT],y
+pub(super) const LONG: &str = "long";
+pub(super) const LONG_X: &str = "long_x";
+pub(super) const RELATIVE16: &str = "relative16"; // long branches
+pub(super) const SRC_DST: &str = "src_dst";
+pub(super) const STACK_S: &str = "stack_s";
+pub(super) const STACK_S_Y: &str = "stack_s_y";
+
 pub(super) fn transforms() -> TransformMap {
     let mut map = super::a6502::transforms();
     map
