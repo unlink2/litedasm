@@ -435,6 +435,28 @@ mod test {
                 3,
             );
         }
+
+        // jmp with label
+        {
+            let mut ctx = Context::default();
+
+            ctx.def_symbol(
+                super::ValueType::U16(0x1234),
+                Symbol::new(
+                    "test".into(),
+                    SymbolKind::Label,
+                    super::symbols::Scope::Global,
+                ),
+            );
+
+            test_arch_result_ctx(
+                &a65c816::ARCH,
+                &mut ctx,
+                &[0x4C, 0x34, 0x12],
+                "00000000 jmp test\n",
+                3,
+            );
+        }
     }
 
     #[test]
