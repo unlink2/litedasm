@@ -369,6 +369,17 @@ mod test {
             "00000000 ora ($12, s), y\n",
             2,
         );
+
+        // [dp], y
+        test_arch_result(&a65c816::ARCH, &[0x17, 0x12], "00000000 ora [$12], y\n", 2);
+
+        // long, x
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0x1F, 0x56, 0x34, 0x12],
+            "00000000 ora $123456, x\n",
+            4,
+        );
     }
 
     #[test]

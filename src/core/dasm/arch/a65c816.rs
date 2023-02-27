@@ -96,12 +96,51 @@ fn transform_long(map: &mut TransformMap) {
     );
 }
 
+fn transform_long_x(map: &mut TransformMap) {
+    map.insert(
+        LONG_X.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" ".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U32,
+                data_len_override: Some(3),
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", x".into())),
+        ],
+    );
+}
+
+fn transform_indirect_y24(map: &mut TransformMap) {
+    map.insert(
+        INDIRECT_Y24.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" [".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new("], y".into())),
+        ],
+    );
+}
+
 pub(super) fn transforms() -> TransformMap {
     let mut map = super::a6502::transforms();
     transform_stack_s(&mut map);
     transform_direct24(&mut map);
     transform_long(&mut map);
     transform_stack_s_y(&mut map);
+    transform_indirect_y24(&mut map);
+    transform_long_x(&mut map);
     map
 }
 
@@ -117,8 +156,16 @@ fn matcher_long(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher3(matchers, op, name, LONG);
 }
 
+fn matcher_long_x(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, LONG_X);
+}
+
 fn matcher_stack_s_y(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher2(matchers, op, name, STACK_S_Y);
+}
+
+fn matcher_indirect_y24(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, INDIRECT_Y24);
 }
 
 pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
@@ -132,8 +179,14 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
         if let Some(op) = modes.get(LONG) {
             matcher_long(matchers, *op, k);
         }
+        if let Some(op) = modes.get(LONG_X) {
+            matcher_long_x(matchers, *op, k);
+        }
         if let Some(op) = modes.get(STACK_S_Y) {
             matcher_stack_s_y(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(INDIRECT_Y24) {
+            matcher_indirect_y24(matchers, *op, k);
         }
     }
     super::a65c02::matchers_from(matchers, instrs);
@@ -145,6 +198,8 @@ fn new_modes_instruction_map(
     direct24: u8,
     long: u8,
     stack_s_y: u8,
+    indirect_y24: u8,
+    long_x: u8,
 ) -> (&'static str, ModeMap) {
     (
         name,
@@ -153,12 +208,23 @@ fn new_modes_instruction_map(
             (DIRECT24, direct24),
             (LONG, long),
             (STACK_S_Y, stack_s_y),
+            (INDIRECT_Y24, indirect_y24),
+            (LONG_X, long_x),
         ]),
     )
 }
 
 fn instruction_map() -> InstructionMap {
-    InstructionMap::from([new_modes_instruction_map("ora", 0x03, 0x07, 0x0F, 0x13)])
+    InstructionMap::from([
+        new_modes_instruction_map("ora", 0x03, 0x07, 0x0F, 0x13, 0x17, 0x1F),
+        new_modes_instruction_map("and", 0x23, 0x27, 0x2F, 0x33, 0x37, 0x3F),
+        new_modes_instruction_map("eor", 0x43, 0x47, 0x4F, 0x53, 0x57, 0x5F),
+        new_modes_instruction_map("adc", 0x63, 0x67, 0x6F, 0x73, 0x77, 0x7F),
+        new_modes_instruction_map("sta", 0x83, 0x87, 0x8F, 0x93, 0x97, 0x9F),
+        new_modes_instruction_map("lda", 0xA3, 0xA7, 0xAF, 0xB3, 0xB7, 0xBF),
+        new_modes_instruction_map("cmp", 0xC3, 0xC7, 0xCF, 0xD3, 0xD7, 0xDF),
+        new_modes_instruction_map("sbc", 0xE3, 0xE7, 0xEF, 0xF3, 0xF7, 0xFF),
+    ])
 }
 
 pub(super) fn patterns() -> MatcherList {
