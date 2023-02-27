@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
 use super::{
-    a6502::{matcher2, matcher3, InstructionMap, ModeMap},
+    a6502::{implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap},
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };
 
@@ -224,6 +224,22 @@ fn instruction_map() -> InstructionMap {
         new_modes_instruction_map("lda", 0xA3, 0xA7, 0xAF, 0xB3, 0xB7, 0xBF),
         new_modes_instruction_map("cmp", 0xC3, 0xC7, 0xCF, 0xD3, 0xD7, 0xDF),
         new_modes_instruction_map("sbc", 0xE3, 0xE7, 0xEF, 0xF3, 0xF7, 0xFF),
+        implied_instruction_map("phd", 0x0B),
+        implied_instruction_map("pld", 0x2B),
+        implied_instruction_map("phk", 0x4B),
+        implied_instruction_map("rtl", 0x6B),
+        implied_instruction_map("phb", 0x8B),
+        implied_instruction_map("plb", 0xAB),
+        implied_instruction_map("wai", 0xCB),
+        implied_instruction_map("xba", 0xEB),
+        implied_instruction_map("tcs", 0x1B),
+        implied_instruction_map("tsc", 0x3B),
+        implied_instruction_map("tcd", 0x5B),
+        implied_instruction_map("tdc", 0x7B),
+        implied_instruction_map("txy", 0xBB),
+        implied_instruction_map("tyx", 0xBB),
+        implied_instruction_map("stp", 0xDB),
+        implied_instruction_map("xce", 0xFB),
     ])
 }
 
