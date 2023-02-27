@@ -361,6 +361,14 @@ mod test {
             "00000000 ora $123456\n00000004 nop\n",
             5,
         );
+
+        // (stack, S), Y
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0x13, 0x12],
+            "00000000 ora ($12, s), y\n",
+            2,
+        );
     }
 
     #[test]

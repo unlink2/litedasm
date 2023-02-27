@@ -42,6 +42,24 @@ fn transform_stack_s(map: &mut TransformMap) {
     );
 }
 
+fn transform_stack_s_y(map: &mut TransformMap) {
+    map.insert(
+        STACK_S_Y.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" (".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", s), y".into())),
+        ],
+    );
+}
+
 fn transform_direct24(map: &mut TransformMap) {
     map.insert(
         DIRECT24.into(),
@@ -83,6 +101,7 @@ pub(super) fn transforms() -> TransformMap {
     transform_stack_s(&mut map);
     transform_direct24(&mut map);
     transform_long(&mut map);
+    transform_stack_s_y(&mut map);
     map
 }
 
@@ -98,6 +117,10 @@ fn matcher_long(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher3(matchers, op, name, LONG);
 }
 
+fn matcher_stack_s_y(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, STACK_S_Y);
+}
+
 pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     for (k, modes) in instrs.iter() {
         if let Some(op) = modes.get(STACK_S) {
@@ -109,6 +132,9 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
         if let Some(op) = modes.get(LONG) {
             matcher_long(matchers, *op, k);
         }
+        if let Some(op) = modes.get(STACK_S_Y) {
+            matcher_stack_s_y(matchers, *op, k);
+        }
     }
     super::a65c02::matchers_from(matchers, instrs);
 }
@@ -118,15 +144,21 @@ fn new_modes_instruction_map(
     stack_s: u8,
     direct24: u8,
     long: u8,
+    stack_s_y: u8,
 ) -> (&'static str, ModeMap) {
     (
         name,
-        ModeMap::from([(STACK_S, stack_s), (DIRECT24, direct24), (LONG, long)]),
+        ModeMap::from([
+            (STACK_S, stack_s),
+            (DIRECT24, direct24),
+            (LONG, long),
+            (STACK_S_Y, stack_s_y),
+        ]),
     )
 }
 
 fn instruction_map() -> InstructionMap {
-    InstructionMap::from([new_modes_instruction_map("ora", 0x03, 0x07, 0x0F)])
+    InstructionMap::from([new_modes_instruction_map("ora", 0x03, 0x07, 0x0F, 0x13)])
 }
 
 pub(super) fn patterns() -> MatcherList {

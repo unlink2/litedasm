@@ -8,13 +8,20 @@ use crate::{
 };
 
 pub fn init(cfg: &Config) -> FdResult<()> {
-    if let Some(shell) = CFG.completions {
+    if let Some(shell) = cfg.completions {
         generate_completion(shell);
         std::process::exit(0);
     }
 
     // first get the arch
     let arch = cfg.arch.to_arch(cfg)?;
+
+    // dump mode?
+    if cfg.dump_arch {
+        println!("{}", serde_json::to_string_pretty(&arch).unwrap());
+        std::process::exit(0);
+    }
+
     // set up io
     let mut input = cfg.input()?;
     let mut output = cfg.output()?;
