@@ -128,6 +128,12 @@ pub struct ValOut {
     fmt: ValueTypeFmt,
     #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
+    // it is possible to provide a data lenght override if required
+    // the data transformer will automatically pad to the correct size
+    // required by the data type,
+    // but the read data will only be the spezified amount of bytes
+    #[cfg_attr(feature = "serde", serde(default))]
+    data_len_override: Option<usize>,
     #[cfg_attr(feature = "serde", serde(default))]
     rel: bool,
 }
@@ -197,12 +203,8 @@ impl Transform {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
         // assuming the pattern is defined correctly!
-        let data = Self::get_data(
-            data,
-            self.offset(),
-            self.data_type(arch.addr_type).data_len(),
-        )
-        .ok_or(Error::TransformOutOfData(ctx.org))?;
+        let data = Self::get_data(data, self.offset(), self.read_len(arch.addr_type))
+            .ok_or(Error::TransformOutOfData(ctx.org))?;
 
         let dt = self.data_type(arch.addr_type);
 
@@ -295,9 +297,17 @@ impl Transform {
     }
 
     fn to_value(data: &[u8], data_type: DataType, arch: &Arch) -> FdResult<ValueType> {
-        arch.endianess
-            .transform(data, data_type)
-            .ok_or(Error::TransformOutOfData(0))
+        if data.len() < data_type.data_len() {
+            println!("here?");
+            let data = arch.endianess.pad(data, data_type.data_len());
+            arch.endianess
+                .transform(&data, data_type)
+                .ok_or(Error::TransformOutOfData(0))
+        } else {
+            arch.endianess
+                .transform(data, data_type)
+                .ok_or(Error::TransformOutOfData(0))
+        }
     }
 
     fn data_type(&self, addr_type: DataType) -> DataType {
@@ -306,6 +316,14 @@ impl Transform {
             Transform::DefSym(ds) => ds.data_type,
             Transform::DefSymAddress(_) => addr_type,
             _ => DataType::None,
+        }
+    }
+
+    // returns amount of bytes that should be read, but *not* consumed
+    fn read_len(&self, addr_type: DataType) -> usize {
+        match self {
+            Transform::Val(_) => self.data_len(),
+            _ => self.data_type(addr_type).data_len(),
         }
     }
 
@@ -318,9 +336,16 @@ impl Transform {
         }
     }
 
+    // returns amount of bytes that should be consumed
     fn data_len(&self) -> usize {
         match self {
-            Transform::Val(dt) => dt.data_type.data_len(),
+            Transform::Val(dt) => {
+                if let Some(len) = dt.data_len_override {
+                    len
+                } else {
+                    dt.data_type.data_len()
+                }
+            }
             Transform::Consume(skip) => *skip,
             _ => 0,
         }
@@ -437,6 +462,28 @@ impl Endianess {
             Self::transform_le(data, dt)
         } else {
             Self::transform_be(data, dt)
+        }
+    }
+
+    // if there is a mismatch between data len and len
+    // pad and return as a new vec
+    // FIXME maybe use stack allocated vec here in the future
+    pub fn pad(&self, data: &[u8], len: usize) -> Vec<u8> {
+        if data.len() >= len {
+            return data.to_vec();
+        }
+        let diff = len - data.len();
+        match self {
+            Endianess::Big => {
+                let mut v = vec![0; diff];
+                v.append(&mut data.to_vec());
+                v
+            }
+            Endianess::Little => {
+                let mut v = data.to_vec();
+                v.append(&mut vec![0; diff]);
+                v
+            }
         }
     }
 

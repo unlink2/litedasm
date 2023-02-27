@@ -353,6 +353,14 @@ mod test {
 
         // [dp]
         test_arch_result(&a65c816::ARCH, &[0x07, 0x12], "00000000 ora [$12]\n", 2);
+
+        // long + test data read size override
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0x0F, 0x56, 0x34, 0x12, 0xEA],
+            "00000000 ora $123456\n00000004 nop\n",
+            5,
+        );
     }
 
     #[test]
