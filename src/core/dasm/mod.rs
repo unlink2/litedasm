@@ -347,6 +347,12 @@ mod test {
                 5,
             );
         }
+
+        // stack, S
+        test_arch_result(&a65c816::ARCH, &[0x03, 0x12], "00000000 ora $12, s\n", 2);
+
+        // [dp]
+        test_arch_result(&a65c816::ARCH, &[0x07, 0x12], "00000000 ora [$12]\n", 2);
     }
 
     #[test]

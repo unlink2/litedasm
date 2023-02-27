@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::core::dasm::arch::Archs;
+use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
-use super::{a6502::InstructionMap, Arch, MatcherList, TransformMap};
+use super::{
+    a6502::{matcher2, InstructionMap, ModeMap},
+    Arch, MatcherList, Node, Transform, TransformMap, ValOut,
+};
 
 use lazy_static::lazy_static;
 
@@ -21,18 +24,82 @@ pub(super) const SRC_DST: &str = "src_dst";
 pub(super) const STACK_S: &str = "stack_s";
 pub(super) const STACK_S_Y: &str = "stack_s_y";
 
+fn transform_stack_s(map: &mut TransformMap) {
+    map.insert(
+        STACK_S.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" ".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", s".into())),
+        ],
+    );
+}
+
+fn transform_direct24(map: &mut TransformMap) {
+    map.insert(
+        DIRECT24.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" [".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new("]".into())),
+        ],
+    );
+}
+
 pub(super) fn transforms() -> TransformMap {
     let mut map = super::a6502::transforms();
+    transform_stack_s(&mut map);
+    transform_direct24(&mut map);
     map
 }
 
+fn matcher_stack_s(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, STACK_S);
+}
+
+fn matcher_direct24(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, DIRECT24);
+}
+
 pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
-    for (k, modes) in instrs.iter() {}
+    for (k, modes) in instrs.iter() {
+        if let Some(op) = modes.get(STACK_S) {
+            matcher_stack_s(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(DIRECT24) {
+            matcher_direct24(matchers, *op, k);
+        }
+    }
     super::a65c02::matchers_from(matchers, instrs);
 }
 
+fn new_modes_instruction_map(
+    name: &'static str,
+    stack_s: u8,
+    direct24: u8,
+) -> (&'static str, ModeMap) {
+    (
+        name,
+        ModeMap::from([(STACK_S, stack_s), (DIRECT24, direct24)]),
+    )
+}
+
 fn instruction_map() -> InstructionMap {
-    InstructionMap::from([])
+    InstructionMap::from([new_modes_instruction_map("ora", 0x03, 0x07)])
 }
 
 pub(super) fn patterns() -> MatcherList {
