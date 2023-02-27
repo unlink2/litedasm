@@ -298,7 +298,6 @@ impl Transform {
 
     fn to_value(data: &[u8], data_type: DataType, arch: &Arch) -> FdResult<ValueType> {
         if data.len() < data_type.data_len() {
-            println!("here?");
             let data = arch.endianess.pad(data, data_type.data_len());
             arch.endianess
                 .transform(&data, data_type)

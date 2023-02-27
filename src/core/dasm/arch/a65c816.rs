@@ -5,6 +5,7 @@ use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 use super::{
     a6502::{
         implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap, ABSOLUTE, IMMEDIATE,
+        IMPLIED,
     },
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };
@@ -135,6 +136,26 @@ fn transform_indirect_y24(map: &mut TransformMap) {
     );
 }
 
+fn transform_relative16(map: &mut TransformMap) {
+    map.insert(
+        RELATIVE16.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Static(Node::new(" ".into())),
+            Transform::OffsetAddress(3),
+            Transform::Val(ValOut {
+                offset: 1,
+                fmt: ValueTypeFmt::LowerHex(4),
+                data_type: DataType::I16,
+                rel: true,
+                ..Default::default()
+            }),
+            Transform::OffsetAddress(-3),
+            Transform::Consume(1),
+        ],
+    );
+}
+
 pub(super) fn transforms() -> TransformMap {
     let mut map = super::a6502::transforms();
     transform_stack_s(&mut map);
@@ -143,6 +164,7 @@ pub(super) fn transforms() -> TransformMap {
     transform_stack_s_y(&mut map);
     transform_indirect_y24(&mut map);
     transform_long_x(&mut map);
+    transform_relative16(&mut map);
     map
 }
 
@@ -170,6 +192,10 @@ fn matcher_indirect_y24(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher2(matchers, op, name, INDIRECT_Y24);
 }
 
+fn matcher_relative16(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, RELATIVE16);
+}
+
 pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     for (k, modes) in instrs.iter() {
         if let Some(op) = modes.get(STACK_S) {
@@ -189,6 +215,9 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
         }
         if let Some(op) = modes.get(INDIRECT_Y24) {
             matcher_indirect_y24(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(RELATIVE16) {
+            matcher_relative16(matchers, *op, k);
         }
     }
     super::a65c02::matchers_from(matchers, instrs);
@@ -243,6 +272,12 @@ fn instruction_map() -> InstructionMap {
         implied_instruction_map("stp", 0xDB),
         implied_instruction_map("xce", 0xFB),
         ("cop", ModeMap::from([(IMMEDIATE, 0x02)])),
+        ("jsl", ModeMap::from([(LONG, 0x22)])),
+        implied_instruction_map("wdm", 0x42),
+        ("per", ModeMap::from([(ABSOLUTE, 0x62)])),
+        ("brl", ModeMap::from([(RELATIVE16, 0x82)])),
+        ("rep", ModeMap::from([(IMMEDIATE, 0xC2)])),
+        ("sep", ModeMap::from([(IMMEDIATE, 0xE2)])),
     ])
 }
 
@@ -259,6 +294,7 @@ pub(super) fn archs() -> BTreeMap<String, Arch> {
         Arch {
             patterns: super::a6502::add_patterns_default(patterns()),
             transforms: transforms(),
+            addr_type: DataType::U32,
             // we can unwrap this because the 6502 is guaranteed to have an empty
             // arch key!
             ..super::a6502::ARCH.archs.get("").unwrap().to_owned()

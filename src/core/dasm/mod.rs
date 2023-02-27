@@ -383,6 +383,58 @@ mod test {
 
         // cop
         test_arch_result(&a65c816::ARCH, &[0x02, 0x12], "00000000 cop #$12\n", 2);
+
+        // jsl with label
+        {
+            let mut ctx = Context::default();
+
+            ctx.def_symbol(
+                super::ValueType::U32(0x123456),
+                Symbol::new(
+                    "test".into(),
+                    SymbolKind::Label,
+                    super::symbols::Scope::Global,
+                ),
+            );
+
+            test_arch_result_ctx(
+                &a65c816::ARCH,
+                &mut ctx,
+                &[0x22, 0x56, 0x34, 0x12, 0x22, 0x12, 0x34, 0x56],
+                "00000000 jsl test\n00000004 jsl $563412\n",
+                8,
+            );
+        }
+
+        // brl
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0x82, 0x34, 0x12],
+            "00000000 brl $1234\n",
+            3,
+        );
+
+        // brl with label
+        {
+            let mut ctx = Context::default();
+
+            ctx.def_symbol(
+                super::ValueType::U32(0x05),
+                Symbol::new(
+                    "test".into(),
+                    SymbolKind::Label,
+                    super::symbols::Scope::Global,
+                ),
+            );
+
+            test_arch_result_ctx(
+                &a65c816::ARCH,
+                &mut ctx,
+                &[0x82, 0x02, 0x00],
+                "00000000 brl test\n",
+                3,
+            );
+        }
     }
 
     #[test]
