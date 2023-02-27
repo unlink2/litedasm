@@ -380,6 +380,9 @@ mod test {
             "00000000 ora $123456, x\n",
             4,
         );
+
+        // cop
+        test_arch_result(&a65c816::ARCH, &[0x02, 0x12], "00000000 cop #$12\n", 2);
     }
 
     #[test]

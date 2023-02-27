@@ -13,6 +13,7 @@ lazy_static! {
     pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
+pub(super) const IMMEDIATE: &str = "immediate";
 pub(super) const IMMEDIATE_NO_M_FLAG: &str = "immediate_no_m_flag";
 pub(super) const IMMEDIATE_M_FLAG: &str = "immediate_m_flag";
 pub(super) const IMMEDIATE_X_FLAG: &str = "immediate_no_x_flag";
@@ -250,6 +251,7 @@ fn transform_implied(map: &mut TransformMap) {
 }
 
 fn transforms_default_modes(map: &mut TransformMap) {
+    transform_immediate(map, DataType::U8, IMMEDIATE);
     transform_immediate(map, DataType::U8, IMMEDIATE_NO_M_FLAG);
     transform_immediate(map, DataType::U16, IMMEDIATE_M_FLAG);
     transform_immediate(map, DataType::U16, IMMEDIATE_X_FLAG);
@@ -382,6 +384,10 @@ fn matcher_immediate_x_flag(matchers: &mut MatcherList, op: u8, name: &str) {
 
 fn matcher_immediate_no_x_flag(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher_immediate_no_x(matchers, op, name, IMMEDIATE_NO_X_FLAG);
+}
+
+fn matcher_immediate(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, IMMEDIATE_NO_X_FLAG);
 }
 
 fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
@@ -627,6 +633,9 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
     for (k, modes) in instrs.iter() {
         // FIXME this is awful to read
         // map all keys to the respective calls
+        if let Some(op) = modes.get(IMMEDIATE) {
+            matcher_immediate(matchers, *op, k);
+        }
         if let Some(op) = modes.get(IMMEDIATE_NO_M_FLAG) {
             matcher_immediate_no_m_flag(matchers, *op, k);
         }

@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
 use super::{
-    a6502::{implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap},
+    a6502::{
+        implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap, ABSOLUTE, IMMEDIATE,
+    },
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };
 
@@ -240,6 +242,7 @@ fn instruction_map() -> InstructionMap {
         implied_instruction_map("tyx", 0xBB),
         implied_instruction_map("stp", 0xDB),
         implied_instruction_map("xce", 0xFB),
+        ("cop", ModeMap::from([(IMMEDIATE, 0x02)])),
     ])
 }
 
