@@ -136,6 +136,11 @@ pub struct ValOut {
     data_len_override: Option<usize>,
     #[cfg_attr(feature = "serde", serde(default))]
     rel: bool,
+
+    // automatically define a symbol for this
+    // value of no symbol does yet exist at the requested value
+    #[cfg_attr(feature = "serde", serde(default))]
+    auto_def_sym: bool,
 }
 
 /// A formatter takes an input &[u8] and applies a transform to the data
@@ -277,7 +282,7 @@ impl Transform {
         match self {
             Transform::DefSym(ds) => ctx.def_symbol(
                 Self::to_value(data, dt, arch)?,
-                Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
+                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
             ),
             Transform::DefSymAddress(ds) => ctx.def_symbol(
                 Self::to_addr(data, arch)?,
@@ -327,10 +332,18 @@ impl Transform {
         };
 
         if let Some(sym) = ctx.get_first_symbol(sym_val) {
-            f(&Node::new(sym.name.to_owned()), data, arch, ctx)
+            if !ctx.analyze {
+                f(&Node::new(sym.name.to_owned()), data, arch, ctx)?
+            }
         } else {
-            f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)
+            if !ctx.analyze {
+                f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)?
+            } else if ao.auto_def_sym {
+                let name = format!("auto_{}", ctx.address());
+                ctx.def_symbol(value, Symbol::new(name, SymbolKind::Label, Scope::Global));
+            }
         }
+        Ok(())
     }
 
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
