@@ -14,6 +14,7 @@ lazy_static! {
 }
 
 pub(super) const IMMEDIATE: &str = "immediate";
+pub(super) const IMMEDIATE16: &str = "immediate16";
 pub(super) const IMMEDIATE_NO_M_FLAG: &str = "immediate_no_m_flag";
 pub(super) const IMMEDIATE_M_FLAG: &str = "immediate_m_flag";
 pub(super) const IMMEDIATE_X_FLAG: &str = "immediate_no_x_flag";
@@ -74,6 +75,23 @@ fn transform_immediate(map: &mut TransformMap, short: DataType, mode: &str) {
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
+                data_type: short,
+                ..Default::default()
+            }),
+        ],
+    );
+}
+
+fn transform_immediate16(map: &mut TransformMap, short: DataType, mode: &str) {
+    map.insert(
+        mode.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" #".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(4),
                 data_type: short,
                 ..Default::default()
             }),
@@ -252,6 +270,7 @@ fn transform_implied(map: &mut TransformMap) {
 
 fn transforms_default_modes(map: &mut TransformMap) {
     transform_immediate(map, DataType::U8, IMMEDIATE);
+    transform_immediate16(map, DataType::U16, IMMEDIATE16);
     transform_immediate(map, DataType::U8, IMMEDIATE_NO_M_FLAG);
     transform_immediate(map, DataType::U16, IMMEDIATE_M_FLAG);
     transform_immediate(map, DataType::U16, IMMEDIATE_X_FLAG);
@@ -387,7 +406,11 @@ fn matcher_immediate_no_x_flag(matchers: &mut MatcherList, op: u8, name: &str) {
 }
 
 fn matcher_immediate(matchers: &mut MatcherList, op: u8, name: &str) {
-    matcher2(matchers, op, name, IMMEDIATE_NO_X_FLAG);
+    matcher2(matchers, op, name, IMMEDIATE);
+}
+
+fn matcher_immediate16(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher2(matchers, op, name, IMMEDIATE16);
 }
 
 fn matcher_zp(matchers: &mut MatcherList, op: u8, name: &str) {
@@ -694,6 +717,9 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
 
         if let Some(op) = modes.get(INDIRECT_JMP) {
             matcher_indirect_jmp(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(IMMEDIATE16) {
+            matcher_immediate16(matchers, *op, k);
         }
     }
 }

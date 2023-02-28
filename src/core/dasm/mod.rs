@@ -457,6 +457,38 @@ mod test {
                 3,
             );
         }
+
+        // move
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0x54, 0x12, 0x34],
+            "00000000 mvn #$12, #$34\n",
+            3,
+        );
+
+        // pea
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0xF4, 0x34, 0x12],
+            "00000000 pea #$1234\n",
+            3,
+        );
+
+        // jmp [long]
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0xDC, 0x34, 0x12],
+            "00000000 jmp [$1234]\n",
+            3,
+        );
+
+        // jsr (abs, x)
+        test_arch_result(
+            &a65c816::ARCH,
+            &[0xFC, 0x34, 0x12],
+            "00000000 jsr ($1234, x)\n",
+            3,
+        );
     }
 
     #[test]

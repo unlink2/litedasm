@@ -5,7 +5,7 @@ use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 use super::{
     a6502::{
         implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap, ABSOLUTE, IMMEDIATE,
-        IMPLIED,
+        IMMEDIATE16, IMPLIED,
     },
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };
@@ -17,15 +17,16 @@ lazy_static! {
     pub static ref ARCH: Archs = Archs {archs: archs(), ..Default::default()};
 }
 
-pub(super) const ABSOLUTE24: &str = "absolute24";
 pub(super) const DIRECT24: &str = "direct24"; // [DIRECT]
 pub(super) const INDIRECT_Y24: &str = "indirect_y24"; // [DIRECT],y
 pub(super) const LONG: &str = "long";
 pub(super) const LONG_X: &str = "long_x";
 pub(super) const RELATIVE16: &str = "relative16"; // long branches
-pub(super) const SRC_DST: &str = "src_dst";
 pub(super) const STACK_S: &str = "stack_s";
 pub(super) const STACK_S_Y: &str = "stack_s_y";
+pub(super) const MOVE: &str = "move";
+pub(super) const JUMP_LONG_INDIRECT: &str = "jump_long_indirect";
+pub(super) const JSR_INDIRECT_X: &str = "jsr_indirect_x";
 
 fn transform_stack_s(map: &mut TransformMap) {
     map.insert(
@@ -77,6 +78,42 @@ fn transform_direct24(map: &mut TransformMap) {
                 ..Default::default()
             }),
             Transform::Static(Node::new("]".into())),
+        ],
+    );
+}
+
+fn transform_jump_long_indirect(map: &mut TransformMap) {
+    map.insert(
+        JUMP_LONG_INDIRECT.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" [".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(4),
+                data_type: DataType::U16,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new("]".into())),
+        ],
+    );
+}
+
+fn transform_jsr_indirect_x(map: &mut TransformMap) {
+    map.insert(
+        JSR_INDIRECT_X.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" (".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(4),
+                data_type: DataType::U16,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", x)".into())),
         ],
     );
 }
@@ -156,6 +193,30 @@ fn transform_relative16(map: &mut TransformMap) {
     );
 }
 
+fn transform_move(map: &mut TransformMap) {
+    map.insert(
+        MOVE.into(),
+        vec![
+            Transform::MatcherName,
+            Transform::Consume(1),
+            Transform::Static(Node::new(" #".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+            Transform::Static(Node::new(", #".into())),
+            Transform::Val(ValOut {
+                offset: 0,
+                fmt: ValueTypeFmt::LowerHex(2),
+                data_type: DataType::U8,
+                ..Default::default()
+            }),
+        ],
+    );
+}
+
 pub(super) fn transforms() -> TransformMap {
     let mut map = super::a6502::transforms();
     transform_stack_s(&mut map);
@@ -165,6 +226,9 @@ pub(super) fn transforms() -> TransformMap {
     transform_indirect_y24(&mut map);
     transform_long_x(&mut map);
     transform_relative16(&mut map);
+    transform_move(&mut map);
+    transform_jump_long_indirect(&mut map);
+    transform_jsr_indirect_x(&mut map);
     map
 }
 
@@ -196,6 +260,18 @@ fn matcher_relative16(matchers: &mut MatcherList, op: u8, name: &str) {
     matcher3(matchers, op, name, RELATIVE16);
 }
 
+fn matcher_move(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, MOVE);
+}
+
+fn matcher_jump_long_indirect(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, JUMP_LONG_INDIRECT);
+}
+
+fn matcher_jsr_indirect_x(matchers: &mut MatcherList, op: u8, name: &str) {
+    matcher3(matchers, op, name, JSR_INDIRECT_X);
+}
+
 pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) {
     for (k, modes) in instrs.iter() {
         if let Some(op) = modes.get(STACK_S) {
@@ -218,6 +294,15 @@ pub(super) fn matchers_from(matchers: &mut MatcherList, instrs: InstructionMap) 
         }
         if let Some(op) = modes.get(RELATIVE16) {
             matcher_relative16(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(MOVE) {
+            matcher_move(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(JUMP_LONG_INDIRECT) {
+            matcher_jump_long_indirect(matchers, *op, k);
+        }
+        if let Some(op) = modes.get(JSR_INDIRECT_X) {
+            matcher_jsr_indirect_x(matchers, *op, k);
         }
     }
     super::a65c02::matchers_from(matchers, instrs);
@@ -278,6 +363,15 @@ fn instruction_map() -> InstructionMap {
         ("brl", ModeMap::from([(RELATIVE16, 0x82)])),
         ("rep", ModeMap::from([(IMMEDIATE, 0xC2)])),
         ("sep", ModeMap::from([(IMMEDIATE, 0xE2)])),
+        ("mvn", ModeMap::from([(MOVE, 0x54)])),
+        ("mvp", ModeMap::from([(MOVE, 0x44)])),
+        ("pei", ModeMap::from([(IMMEDIATE, 0xD4)])),
+        ("pea", ModeMap::from([(IMMEDIATE16, 0xF4)])),
+        (
+            "jmp",
+            ModeMap::from([(LONG, 0x5C), (JUMP_LONG_INDIRECT, 0xDC)]),
+        ),
+        ("jsr", ModeMap::from([(JSR_INDIRECT_X, 0xFC)])),
     ])
 }
 
