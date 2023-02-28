@@ -28,6 +28,10 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     }
 
     let mut ctx = ctx(cfg)?;
+    if cfg.dump_ctx {
+        println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
+        std::process::exit(0);
+    }
 
     // set up io
     let mut input = cfg.input()?;

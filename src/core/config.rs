@@ -79,6 +79,9 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long, short))]
     pub pre_analyze: bool,
 
+    #[cfg_attr(feature = "cli", arg(long))]
+    pub dump_ctx: bool,
+
     #[cfg_attr(feature = "cli", clap(long, value_name = "SHELL"))]
     #[cfg(feature = "cli")]
     pub completions: Option<Shell>,

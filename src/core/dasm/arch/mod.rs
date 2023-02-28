@@ -574,6 +574,10 @@ pub struct Context {
     #[cfg_attr(feature = "serde", serde(default))]
     offset: Address,
     #[cfg_attr(feature = "serde", serde(default))]
+    start_read: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
+    end_read: Option<usize>,
+    #[cfg_attr(feature = "serde", serde(default))]
     syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
     pub analyze: bool,
@@ -588,6 +592,8 @@ impl Context {
             syms,
             offset: 0,
             analyze: false,
+            start_read: 0,
+            end_read: None,
         }
     }
 
@@ -713,6 +719,10 @@ impl Archs {
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<()> {
+        let end_read = ctx.end_read.unwrap_or(data.len());
+        let start_read = ctx.start_read;
+        let data = &data[start_read..end_read];
+
         let mut total = 0;
         // loop until total data processed is out of range
         // or an error occured
