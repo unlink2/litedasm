@@ -32,7 +32,7 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     input.read_to_end(&mut buffer)?;
 
     // first pass - generate symbols
-    arch.disas(|_node, _data, _arch, _ctx| Ok(()), &buffer)?;
+    // arch.disas(|_node, _data, _arch, _ctx| Ok(()), &buffer)?;
 
     // second pass - the actual output
     arch.disas(

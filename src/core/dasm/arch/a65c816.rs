@@ -218,7 +218,7 @@ fn transform_move(map: &mut TransformMap) {
 }
 
 pub(super) fn transforms() -> TransformMap {
-    let mut map = super::a6502::transforms();
+    let mut map = super::a65c02::transforms();
     transform_stack_s(&mut map);
     transform_direct24(&mut map);
     transform_long(&mut map);
