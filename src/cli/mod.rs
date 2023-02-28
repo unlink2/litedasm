@@ -1,11 +1,16 @@
 use crate::{
-    core::{
-        config::{generate_completion, CFG},
-        dasm::arch::{a6502, default_callback},
-        error::FdResult,
-    },
+    core::{config::generate_completion, dasm::arch::Context, error::FdResult},
     prelude::Config,
 };
+
+pub fn ctx(cfg: &Config) -> FdResult<Context> {
+    if let Some(path) = &cfg.ctx_file {
+        let data = std::fs::read_to_string(path)?;
+        Ok(serde_json::from_str(&data).expect("Unable to read context file"))
+    } else {
+        Ok(Context::default())
+    }
+}
 
 pub fn init(cfg: &Config) -> FdResult<()> {
     if let Some(shell) = cfg.completions {
@@ -22,6 +27,8 @@ pub fn init(cfg: &Config) -> FdResult<()> {
         std::process::exit(0);
     }
 
+    let mut ctx = ctx(cfg)?;
+
     // set up io
     let mut input = cfg.input()?;
     let mut output = cfg.output()?;
@@ -32,15 +39,21 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     input.read_to_end(&mut buffer)?;
 
     // first pass - generate symbols
-    // arch.disas(|_node, _data, _arch, _ctx| Ok(()), &buffer)?;
+    if cfg.pre_analyze {
+        ctx.analyze = true;
+        arch.disas_ctx(|_node, _data, _arch, _ctx| Ok(()), &buffer, &mut ctx)?;
+        ctx.restart();
+        ctx.analyze = false;
+    }
 
     // second pass - the actual output
-    arch.disas(
+    arch.disas_ctx(
         |node, _data, _arch, _ctx| {
             write!(output, "{}", node.string)?;
             Ok(())
         },
         &buffer,
+        &mut ctx,
     )?;
 
     Ok(())

@@ -110,6 +110,8 @@ pub enum ValueType {
     None,
 }
 
+// FIXME: Maybe implement From in the future
+#[allow(clippy::from_over_into)]
 impl Into<Address> for ValueType {
     fn into(self) -> Address {
         match self {
@@ -160,7 +162,7 @@ impl ValueType {
             DataType::U8 => Self::U8(address as u8),
             DataType::U16 => Self::U16(address as u16),
             DataType::U32 => Self::U32(address as u32),
-            DataType::U64 => Self::U64(address as u64),
+            DataType::U64 => Self::U64(address),
             DataType::I8 => Self::I8(address as i8),
             DataType::I16 => Self::I16(address as i16),
             DataType::I32 => Self::I32(address as i32),

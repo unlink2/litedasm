@@ -85,11 +85,11 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn is_match(&self, arch: &Arch, ctx: &mut Context, byte: u8) -> bool {
+    pub fn is_match(&self, _arch: &Arch, ctx: &mut Context, byte: u8) -> bool {
         match self {
             Self::Exact(b) => *b == byte,
             Self::And(b) => *b & byte != 0,
-            Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(arch, ctx, byte)),
+            Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(_arch, ctx, byte)),
             Self::Address(start, end) => ctx.address() >= *start && ctx.address() < *end,
             Self::Any => true,
             Self::Never => false,
@@ -153,11 +153,6 @@ pub enum Transform {
     Val(ValOut),
     // output label at current address
     Label,
-
-    // Transforms to run if there is a symbol
-    //HasSymbol(AbsOut, Vec<Transform>),
-    //HasNoSymbol(AbsOut, Vec<Transform>),
-    CurrentAddress,
     /// A static node that can be applied at any point
     /// this node has no attached size
     Static(Node),
@@ -189,7 +184,7 @@ impl Transform {
     }
 
     pub fn space(n: usize) -> Self {
-        Self::Static(Node::new(" ".repeat(n).into()))
+        Self::Static(Node::new(" ".repeat(n)))
     }
 
     pub fn apply(
@@ -208,28 +203,53 @@ impl Transform {
 
         let dt = self.data_type(arch.addr_type);
 
+        if ctx.analyze {
+            self.analyze(f, data, arch, ctx, matcher_name, dt)?;
+        } else {
+            self.no_analyze(f, data, arch, ctx, matcher_name, dt)?;
+        }
+        self.analyze_and_no_analyze(f, data, arch, ctx, matcher_name, dt)?;
+
+        Ok(self.data_len())
+    }
+
+    fn no_analyze(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+        matcher_name: &Node,
+        _dt: DataType,
+    ) -> FdResult<()> {
         match self {
             Transform::Val(ao) => self.output_value(f, data, arch, ctx, ao)?,
             Transform::Label => self.output_label(f, data, arch, ctx)?,
-            Transform::Static(s) => f(&s, data, arch, ctx)?,
-            Transform::MatcherName => f(&matcher_name, data, arch, ctx)?,
-            Transform::DefSym(ds) => ctx.def_symbol(
-                Self::to_value(data, dt, arch)?,
-                Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
-            ),
-            Transform::DefSymAddress(ds) => ctx.def_symbol(
-                Self::to_addr(data, arch)?,
-                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
-            ),
-            Transform::Skip => (),
-            Transform::CurrentAddress => todo!(),
-            Transform::Consume(_) => {}
+            Transform::Static(s) => f(s, data, arch, ctx)?,
+            Transform::MatcherName => f(matcher_name, data, arch, ctx)?,
             Transform::Address(width) => f(
                 &Node::new(format!("{:0width$x}", ctx.address())),
                 data,
                 arch,
                 ctx,
             )?,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn analyze_and_no_analyze(
+        &self,
+        _f: &mut dyn DisasCallback,
+        _data: &[u8],
+        _arch: &Arch,
+        ctx: &mut Context,
+        _matcher_name: &Node,
+        _dt: DataType,
+    ) -> FdResult<()> {
+        match self {
+            Transform::Skip => (),
+            Transform::Consume(_) => {}
             Transform::OffsetAddress(change) => {
                 ctx.offset = ctx.offset.wrapping_add(*change as Address)
             }
@@ -240,9 +260,32 @@ impl Transform {
                 ctx.undef_flag(key);
             }
             Transform::ChangeArch(val) => ctx.arch_key = val.to_owned(),
+            _ => {}
         }
+        Ok(())
+    }
 
-        Ok(self.data_len())
+    fn analyze(
+        &self,
+        _f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+        _matcher_name: &Node,
+        dt: DataType,
+    ) -> FdResult<()> {
+        match self {
+            Transform::DefSym(ds) => ctx.def_symbol(
+                Self::to_value(data, dt, arch)?,
+                Symbol::new(ds.name.clone(), SymbolKind::Const, ds.scope),
+            ),
+            Transform::DefSymAddress(ds) => ctx.def_symbol(
+                Self::to_addr(data, arch)?,
+                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
+            ),
+            _ => {}
+        }
+        Ok(())
     }
 
     fn output_label(
@@ -276,7 +319,7 @@ impl Transform {
         let value = Self::to_value(data, ao.data_type, arch)?;
 
         let sym_val = if ao.rel {
-            let addr: Address = value.clone().into();
+            let addr: Address = value.into();
             let addr = addr.wrapping_add(ctx.address());
             ValueType::from(addr, arch.addr_type)
         } else {
@@ -532,6 +575,8 @@ pub struct Context {
     offset: Address,
     #[cfg_attr(feature = "serde", serde(default))]
     syms: SymbolList,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub analyze: bool,
 }
 
 impl Context {
@@ -542,7 +587,12 @@ impl Context {
             org,
             syms,
             offset: 0,
+            analyze: false,
         }
+    }
+
+    pub fn restart(&mut self) {
+        self.offset = 0;
     }
 
     pub fn address(&self) -> Address {
@@ -610,10 +660,10 @@ pub struct Arch {
 }
 
 impl Arch {
-    fn match_patterns<'a>(
+    fn match_patterns(
         &self,
         f: &mut dyn DisasCallback,
-        data: &'a [u8],
+        data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<usize> {
         for pattern in self.patterns.iter() {

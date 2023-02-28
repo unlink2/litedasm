@@ -88,7 +88,7 @@ impl SymbolList {
     pub fn has_symbols(&self, key: SymbolKey, address: Address) -> bool {
         let iter = self.map.get(&key);
         if let Some(iter) = iter {
-            iter.iter().find(|x| x.scope.is_in_scope(address)).is_some()
+            iter.iter().any(|x| x.scope.is_in_scope(address))
         } else {
             false
         }

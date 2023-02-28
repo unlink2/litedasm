@@ -5,7 +5,7 @@ use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 use super::{
     a6502::{
         implied_instruction_map, matcher2, matcher3, InstructionMap, ModeMap, ABSOLUTE, IMMEDIATE,
-        IMMEDIATE16, IMPLIED,
+        IMMEDIATE16,
     },
     Arch, MatcherList, Node, Transform, TransformMap, ValOut,
 };

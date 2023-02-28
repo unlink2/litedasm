@@ -3,8 +3,7 @@ use std::collections::BTreeMap;
 use crate::core::dasm::{arch::Archs, DataType, ValueTypeFmt};
 
 use super::{
-    Arch, Matcher, MatcherList, Node, NodeKind, Pattern, PatternAt, Transform, TransformList,
-    TransformMap, ValOut,
+    Arch, Matcher, MatcherList, Node, Pattern, PatternAt, Transform, TransformMap, ValOut,
 };
 use lazy_static::lazy_static;
 
@@ -468,6 +467,7 @@ pub(super) fn relative_instruction_map(name: &'static str, opcode: u8) -> (&'sta
     (name, ModeMap::from([(RELATIVE, opcode)]))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn default_instruction_map(
     name: &'static str,
     immediate: u8,

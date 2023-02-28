@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    io::{BufReader, BufWriter, LineWriter, Read, Write},
+    io::{BufReader, LineWriter, Read, Write},
     path::PathBuf,
 };
 
@@ -27,12 +27,15 @@ pub enum ArchKind {
 }
 
 impl ArchKind {
-    pub fn to_arch(&self, _cfg: &Config) -> FdResult<Archs> {
+    pub fn to_arch(&self, cfg: &Config) -> FdResult<Archs> {
         Ok(match self {
             ArchKind::Arch6502 => a6502::ARCH.to_owned(),
             ArchKind::Arch65c02 => a65c02::ARCH.to_owned(),
             ArchKind::Arch65c816 => a65c816::ARCH.to_owned(),
-            ArchKind::ArchCustom => todo!("Custom archs are not yet supported!"),
+            ArchKind::ArchCustom => serde_json::from_str(&std::fs::read_to_string(
+                cfg.arch_file.as_ref().expect("No arch file found"),
+            )?)
+            .expect("Error parsing arch file"),
         })
     }
 }
@@ -64,11 +67,17 @@ pub struct Config {
     #[cfg_attr(feature = "cli", clap(long))]
     pub arch_file: Option<PathBuf>,
 
+    #[cfg_attr(feature = "cli", clap(long, short))]
+    pub ctx_file: Option<PathBuf>,
+
     #[cfg_attr(feature = "cli", arg(short, long, action = clap::ArgAction::Count))]
     pub verbose: u8,
 
     #[cfg_attr(feature = "cli", arg(long))]
     pub dump_arch: bool,
+
+    #[cfg_attr(feature = "cli", arg(long, short))]
+    pub pre_analyze: bool,
 
     #[cfg_attr(feature = "cli", clap(long, value_name = "SHELL"))]
     #[cfg(feature = "cli")]
