@@ -2,8 +2,8 @@
 fn main() {}
 
 #[cfg(feature = "cli")]
-fn main() -> fasdasm::prelude::FdResult<()> {
-    fasdasm::cli::init(&fasdasm::prelude::CFG)
+fn main() -> litedasm::prelude::FdResult<()> {
+    litedasm::cli::init(&litedasm::prelude::CFG)
 }
 
 #[cfg(test)]

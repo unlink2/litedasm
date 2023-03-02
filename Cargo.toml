@@ -1,5 +1,5 @@
 [package]
-name = "fasdasm"
+name = "litedasm"
 description = ""
 version = "0.1.0"
 edition = "2021"
@@ -7,7 +7,7 @@ authors = ["Lukas Krickl <lukas@krickl.dev>"]
 license = "MIT"
 # license-file = "./LICENSE"
 readme = "README.md"
-repository = "https://github.com/unlink2/rust-template"
+repository = "https://github.com/unlink2/litedasm"
 
 [features]
 default = ["tui"]
