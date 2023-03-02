@@ -14,7 +14,7 @@ use std::io::prelude::*;
 pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     let mut ctx = if let Some(path) = &cfg.ctx_file {
         let data = std::fs::read_to_string(path)?;
-        serde_json::from_str(&data).expect("Unable to read context file")
+        ron::from_str(&data).expect("Unable to read context file")
     } else {
         Context::default()
     };
@@ -24,7 +24,8 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
 }
 
 pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
-    let data = serde_json::to_string_pretty(ctx).expect("Unable to convert context");
+    let data =
+        ron::ser::to_string_pretty(ctx, Default::default()).expect("Unable to convert context");
 
     if let Some(path) = &cfg.ctx_file {
         let mut f = std::fs::File::create(path)?;
@@ -55,12 +56,18 @@ pub fn init(cfg: &Config) -> FdResult<()> {
 }
 
 fn dump_arch(_cfg: &Config, arch: &Archs) -> FdResult<()> {
-    println!("{}", serde_json::to_string_pretty(&arch).unwrap());
+    println!(
+        "{}",
+        ron::ser::to_string_pretty(&arch, Default::default()).unwrap()
+    );
     Ok(())
 }
 
 fn dump_ctx(_cfg: &Config, ctx: &Context) -> FdResult<()> {
-    println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
+    println!(
+        "{}",
+        ron::ser::to_string_pretty(&ctx, Default::default()).unwrap()
+    );
     Ok(())
 }
 

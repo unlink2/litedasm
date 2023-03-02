@@ -106,8 +106,6 @@ impl Pattern {
 
 type PatternList = Vec<Pattern>;
 
-impl ValueType {}
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone)]
 pub struct DefSym {

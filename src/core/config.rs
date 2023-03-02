@@ -158,7 +158,7 @@ impl ArchKind {
             ArchKind::Arch6502 => a6502::ARCH.to_owned(),
             ArchKind::Arch65c02 => a65c02::ARCH.to_owned(),
             ArchKind::Arch65c816 => a65c816::ARCH.to_owned(),
-            ArchKind::ArchCustom => serde_json::from_str(&std::fs::read_to_string(
+            ArchKind::ArchCustom => ron::from_str(&std::fs::read_to_string(
                 cfg.arch_file.as_ref().expect("No arch file found"),
             )?)
             .expect("Error parsing arch file"),
