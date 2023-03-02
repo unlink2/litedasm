@@ -7,7 +7,7 @@ use crate::{
         },
         error::FdResult,
     },
-    prelude::{Config, DisasCommand},
+    prelude::{Config, DefSym, DisasCommand},
 };
 use std::io::prelude::*;
 
@@ -46,10 +46,11 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     let mut ctx = read_ctx(cfg)?;
 
     match &cfg.command {
-        crate::prelude::Commands::CtxOrg { address } => org(cfg, *address, &arch, &mut ctx),
+        crate::prelude::Commands::Org { address } => org(cfg, *address, &arch, &mut ctx),
         crate::prelude::Commands::Disas(d) => disas(cfg, d, &arch, &mut ctx),
         crate::prelude::Commands::DumpArch => dump_arch(cfg, &arch),
         crate::prelude::Commands::DumpCtx => dump_ctx(cfg, &ctx),
+        crate::prelude::Commands::DefSym(ds) => defsym(cfg, ds, &arch, &mut ctx),
     }
 }
 
@@ -96,4 +97,9 @@ fn disas(_cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -
         ctx,
     )?;
     Ok(())
+}
+
+fn defsym(cfg: &Config, defsym: &DefSym, _arch: &Archs, ctx: &mut Context) -> FdResult<()> {
+    ctx.def_symbol(defsym.clone().into(), defsym.clone().into());
+    write_ctx(cfg, ctx)
 }
