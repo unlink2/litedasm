@@ -172,6 +172,7 @@ pub enum Transform {
     // Outputs the current address with a prefix of n 0s
     Address(usize),
     OffsetAddress(i64),
+    SetAddress(Address),
     SetFlag(String, String),
     UnsetFlag(String),
     ChangeArch(String),
@@ -257,6 +258,10 @@ impl Transform {
             Transform::Consume(_) => {}
             Transform::OffsetAddress(change) => {
                 ctx.offset = ctx.offset.wrapping_add(*change as Address)
+            }
+            Transform::SetAddress(change) => {
+                ctx.org = *change;
+                ctx.offset = 0;
             }
             Transform::SetFlag(key, value) => {
                 ctx.def_flag(key, value);
@@ -685,13 +690,18 @@ impl Arch {
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<usize> {
+        let mut total_res = Err(Error::NoMatch);
         for pattern in self.patterns.iter() {
             if pattern.is_match(self, ctx, data) {
-                let res = pattern.transform(f, data, self, ctx)?;
-                return Ok(res);
+                let res = pattern.transform(&mut *f, data, self, ctx)?;
+                if res > 0 {
+                    return Ok(res);
+                } else {
+                    total_res = Ok(res);
+                }
             }
         }
-        Err(Error::NoMatch)
+        total_res
     }
 
     pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
