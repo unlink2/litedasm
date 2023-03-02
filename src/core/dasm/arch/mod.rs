@@ -346,14 +346,13 @@ impl Transform {
             if !ctx.analyze {
                 f(&Node::new(sym.name.to_owned()), data, arch, ctx)?
             }
-        } else {
-            if !ctx.analyze {
-                f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)?
-            } else if ao.auto_def_sym {
-                let name = format!("auto_{}", ctx.address());
-                ctx.def_symbol(value, Symbol::new(name, SymbolKind::Label, Scope::Global));
-            }
+        } else if !ctx.analyze {
+            f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)?
+        } else if ao.auto_def_sym {
+            let name = format!("auto_{}", ctx.address());
+            ctx.def_symbol(value, Symbol::new(name, SymbolKind::Label, Scope::Global));
         }
+
         Ok(())
     }
 
@@ -726,7 +725,7 @@ impl Arch {
     ) -> FdResult<usize> {
         for pattern in patterns.iter() {
             if pattern.is_match(self, ctx, data) {
-                let res = pattern.transform(&mut *f, &data, self, ctx)?;
+                let res = pattern.transform(&mut *f, data, self, ctx)?;
 
                 return Ok(res);
             }
