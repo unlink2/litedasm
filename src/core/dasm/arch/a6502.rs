@@ -303,6 +303,11 @@ pub(super) fn transforms() -> TransformMap {
             }),
         ],
     );
+    map.insert(
+        "address".into(),
+        vec![Transform::Label, Transform::Address(8), Transform::space(1)],
+    );
+    map.insert("new_line".into(), vec![Transform::new_line()]);
     transforms_default_modes(&mut map);
 
     map
@@ -748,8 +753,16 @@ fn archs() -> BTreeMap<String, Arch> {
         Arch {
             patterns: add_patterns_default(patterns()),
             transforms: transforms(),
-            pre_transforms: vec![Transform::Label, Transform::Address(8), Transform::space(1)],
-            post_transforms: vec![Transform::new_line()],
+            pre_patterns: vec![Matcher {
+                patterns: vec![PatternAt::new(Pattern::Always, 0)],
+                name: "address".into(),
+                transforms: "address".into(),
+            }],
+            post_patterns: vec![Matcher {
+                patterns: vec![PatternAt::new(Pattern::Always, 0)],
+                name: "new_line".into(),
+                transforms: "new_line".into(),
+            }],
             node_map: BTreeMap::from([
                 (
                     ValueTypeFmt::LowerHex(0).pre().into(),

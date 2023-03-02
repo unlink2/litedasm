@@ -70,12 +70,13 @@ pub fn default_callback(
 
 /// A match pattern
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub enum Pattern {
     Exact(u8),
     And(u8),
     List(PatternList),
     Any,
+    Always,
     // Match an address range from 0..1
     Address(Address, Address),
     // check if a flag has a certain value
@@ -92,9 +93,14 @@ impl Pattern {
             Self::List(l) => l.iter().fold(true, |i, p| i & p.is_match(_arch, ctx, byte)),
             Self::Address(start, end) => ctx.address() >= *start && ctx.address() < *end,
             Self::Any => true,
+            Self::Always => true,
             Self::Never => false,
             Self::Flag(key, value) => ctx.get_flag(key) == value.as_ref(),
         }
+    }
+
+    pub fn always(&self) -> bool {
+        *self == Self::Always
     }
 }
 
@@ -456,6 +462,9 @@ impl Matcher {
     /// check if this matcher matches the pattern specified
     pub fn is_match(&self, arch: &Arch, ctx: &mut Context, data: &[u8]) -> bool {
         for pa in self.patterns.iter() {
+            if pa.pattern.always() {
+                return true;
+            }
             if let Some(byte) = data.get(pa.offset) {
                 if !pa.pattern.is_match(arch, ctx, *byte) {
                     return false;
@@ -477,9 +486,7 @@ impl Matcher {
     ) -> FdResult<usize> {
         if let Some(tl) = arch.get_transform(&self.transforms) {
             let mut total = 0;
-            total = self.apply(&mut f, data, arch, ctx, total, &arch.pre_transforms)?;
             total = self.apply(&mut f, data, arch, ctx, total, tl)?;
-            total = self.apply(&mut f, data, arch, ctx, total, &arch.post_transforms)?;
             Ok(total)
         } else {
             Err(Error::TransformNotFound(self.transforms.clone()))
@@ -659,9 +666,9 @@ pub struct Arch {
 
     // transforms that are applied before and after every match
     #[cfg_attr(feature = "serde", serde(default))]
-    pre_transforms: TransformList,
+    pre_patterns: MatcherList,
     #[cfg_attr(feature = "serde", serde(default))]
-    post_transforms: TransformList,
+    post_patterns: MatcherList,
 
     #[cfg_attr(feature = "serde", serde(default))]
     endianess: Endianess,
@@ -698,18 +705,33 @@ impl Arch {
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<usize> {
-        let mut total_res = Err(Error::NoMatch);
         for pattern in self.patterns.iter() {
             if pattern.is_match(self, ctx, data) {
-                let res = pattern.transform(&mut *f, data, self, ctx)?;
-                if res > 0 {
-                    return Ok(res);
-                } else {
-                    total_res = Ok(res);
-                }
+                let mut res = self.match_additional_patterns(f, data, ctx, &self.pre_patterns)?;
+                res += pattern.transform(&mut *f, &data[res..], self, ctx)?;
+                res += self.match_additional_patterns(f, &data[res..], ctx, &self.post_patterns)?;
+
+                return Ok(res);
             }
         }
-        total_res
+        Err(Error::NoMatch)
+    }
+
+    fn match_additional_patterns(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        ctx: &mut Context,
+        patterns: &MatcherList,
+    ) -> FdResult<usize> {
+        for pattern in patterns.iter() {
+            if pattern.is_match(self, ctx, data) {
+                let res = pattern.transform(&mut *f, &data, self, ctx)?;
+
+                return Ok(res);
+            }
+        }
+        Ok(0)
     }
 
     pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
