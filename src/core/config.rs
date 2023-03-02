@@ -126,7 +126,7 @@ pub struct Config {
     pub dump_ctx: bool,
 
     #[cfg_attr(feature = "cli", arg(long, short))]
-    pub start_read: usize,
+    pub start_read: Option<usize>,
 
     #[cfg_attr(feature = "cli", arg(long, short))]
     pub end_read: Option<usize>,
