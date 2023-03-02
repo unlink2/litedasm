@@ -684,6 +684,14 @@ pub struct Arch {
 }
 
 impl Arch {
+    /// Match a pattern
+    /// All transforms that match a pattern are applied
+    /// until the first transform is hit that consumes actual data
+    /// This means that transforms that do not require data can be used as
+    /// a conditional prefix e.g. to insert assembler directives
+    /// at a certain address
+    /// and after those are matched regular instructions can be
+    /// parsed
     fn match_patterns(
         &self,
         f: &mut dyn DisasCallback,
