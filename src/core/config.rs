@@ -54,6 +54,8 @@ impl DisasCommand {
 pub enum Commands {
     CtxOrg { address: Address },
     Disas(DisasCommand),
+    DumpArch,
+    DumpCtx,
 }
 
 impl Default for Commands {
@@ -118,12 +120,6 @@ pub struct Config {
 
     #[cfg_attr(feature = "cli", arg(short, long, action = clap::ArgAction::Count))]
     pub verbose: u8,
-
-    #[cfg_attr(feature = "cli", arg(long))]
-    pub dump_arch: bool,
-
-    #[cfg_attr(feature = "cli", arg(long))]
-    pub dump_ctx: bool,
 
     #[cfg_attr(feature = "cli", arg(long, short))]
     pub start_read: Option<usize>,

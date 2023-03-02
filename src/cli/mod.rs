@@ -43,23 +43,24 @@ pub fn init(cfg: &Config) -> FdResult<()> {
 
     // first get the arch
     let arch = cfg.arch.to_arch(cfg)?;
-
-    // dump mode?
-    if cfg.dump_arch {
-        println!("{}", serde_json::to_string_pretty(&arch).unwrap());
-        std::process::exit(0);
-    }
-
     let mut ctx = read_ctx(cfg)?;
-    if cfg.dump_ctx {
-        println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
-        std::process::exit(0);
-    }
 
     match &cfg.command {
         crate::prelude::Commands::CtxOrg { address } => org(cfg, *address, &arch, &mut ctx),
         crate::prelude::Commands::Disas(d) => disas(cfg, d, &arch, &mut ctx),
+        crate::prelude::Commands::DumpArch => dump_arch(cfg, &arch),
+        crate::prelude::Commands::DumpCtx => dump_ctx(cfg, &ctx),
     }
+}
+
+fn dump_arch(_cfg: &Config, arch: &Archs) -> FdResult<()> {
+    println!("{}", serde_json::to_string_pretty(&arch).unwrap());
+    Ok(())
+}
+
+fn dump_ctx(_cfg: &Config, ctx: &Context) -> FdResult<()> {
+    println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
+    Ok(())
 }
 
 fn org(cfg: &Config, address: Address, _arch: &Archs, ctx: &mut Context) -> FdResult<()> {
