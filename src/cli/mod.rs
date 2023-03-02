@@ -12,12 +12,15 @@ use crate::{
 use std::io::prelude::*;
 
 pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
-    if let Some(path) = &cfg.ctx_file {
+    let mut ctx = if let Some(path) = &cfg.ctx_file {
         let data = std::fs::read_to_string(path)?;
-        Ok(serde_json::from_str(&data).expect("Unable to read context file"))
+        serde_json::from_str(&data).expect("Unable to read context file")
     } else {
-        Ok(Context::default())
-    }
+        Context::default()
+    };
+    ctx.start_read = cfg.start_read;
+    ctx.end_read = cfg.end_read;
+    Ok(ctx)
 }
 
 pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
