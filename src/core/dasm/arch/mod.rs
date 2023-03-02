@@ -589,20 +589,20 @@ impl Endianess {
 pub struct Context {
     // which architecture to use
     #[cfg_attr(feature = "serde", serde(default))]
-    arch_key: String,
+    pub arch_key: String,
     // a list of flags that can be set or unset using transforms
     #[cfg_attr(feature = "serde", serde(default))]
-    flags: BTreeMap<String, String>,
+    pub flags: BTreeMap<String, String>,
     #[cfg_attr(feature = "serde", serde(default))]
-    org: Address,
+    pub org: Address,
     #[cfg_attr(feature = "serde", serde(default))]
-    offset: Address,
+    pub offset: Address,
     #[cfg_attr(feature = "serde", serde(default))]
-    start_read: usize,
+    pub start_read: usize,
     #[cfg_attr(feature = "serde", serde(default))]
-    end_read: Option<usize>,
+    pub end_read: Option<usize>,
     #[cfg_attr(feature = "serde", serde(default))]
-    syms: SymbolList,
+    pub syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
     pub analyze: bool,
 }

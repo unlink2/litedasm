@@ -1,15 +1,35 @@
 use crate::{
-    core::{config::generate_completion, dasm::arch::Context, error::FdResult},
-    prelude::Config,
+    core::{
+        config::generate_completion,
+        dasm::{
+            arch::{Archs, Context},
+            Address,
+        },
+        error::FdResult,
+    },
+    prelude::{Config, DisasCommand},
 };
+use std::io::prelude::*;
 
-pub fn ctx(cfg: &Config) -> FdResult<Context> {
+pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     if let Some(path) = &cfg.ctx_file {
         let data = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&data).expect("Unable to read context file"))
     } else {
         Ok(Context::default())
     }
+}
+
+pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
+    let data = serde_json::to_string_pretty(ctx).expect("Unable to convert context");
+
+    if let Some(path) = &cfg.ctx_file {
+        let mut f = std::fs::File::create(path)?;
+        f.write_all(&data.into_bytes())?;
+    } else {
+        println!("{}", data);
+    }
+    Ok(())
 }
 
 pub fn init(cfg: &Config) -> FdResult<()> {
@@ -27,15 +47,27 @@ pub fn init(cfg: &Config) -> FdResult<()> {
         std::process::exit(0);
     }
 
-    let mut ctx = ctx(cfg)?;
+    let mut ctx = read_ctx(cfg)?;
     if cfg.dump_ctx {
         println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
         std::process::exit(0);
     }
 
+    match &cfg.command {
+        crate::prelude::Commands::CtxOrg { address } => org(cfg, *address, &arch, &mut ctx),
+        crate::prelude::Commands::Disas(d) => disas(cfg, d, &arch, &mut ctx),
+    }
+}
+
+fn org(cfg: &Config, address: Address, _arch: &Archs, ctx: &mut Context) -> FdResult<()> {
+    ctx.org = address;
+    write_ctx(cfg, ctx)
+}
+
+fn disas(_cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -> FdResult<()> {
     // set up io
-    let mut input = cfg.input()?;
-    let mut output = cfg.output()?;
+    let mut input = disas.input()?;
+    let mut output = disas.output()?;
 
     // read all the input data into a buffer
     // FIXME this may be bad for larger files!
@@ -43,9 +75,9 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     input.read_to_end(&mut buffer)?;
 
     // first pass - generate symbols
-    if cfg.pre_analyze {
+    if disas.pre_analyze {
         ctx.analyze = true;
-        arch.disas_ctx(|_node, _data, _arch, _ctx| Ok(()), &buffer, &mut ctx)?;
+        arch.disas_ctx(|_node, _data, _arch, _ctx| Ok(()), &buffer, ctx)?;
         ctx.restart();
         ctx.analyze = false;
     }
@@ -57,8 +89,7 @@ pub fn init(cfg: &Config) -> FdResult<()> {
             Ok(())
         },
         &buffer,
-        &mut ctx,
+        ctx,
     )?;
-
     Ok(())
 }

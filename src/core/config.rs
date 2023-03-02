@@ -4,16 +4,62 @@ use std::{
     path::PathBuf,
 };
 
-use super::dasm::arch::{a6502, a65c02, a65c816, Archs};
+use super::dasm::{
+    arch::{a6502, a65c02, a65c816, Archs},
+    Address,
+};
 use crate::prelude::FdResult;
 #[cfg(feature = "cli")]
-use clap::{CommandFactory, Parser, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 #[cfg(feature = "cli")]
 use clap_complete::{generate, Generator, Shell};
 use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref CFG: Config = Config::new();
+}
+
+#[cfg_attr(feature = "cli", derive(Args))]
+#[derive(Clone, Debug, Default)]
+pub struct DisasCommand {
+    input: Option<PathBuf>,
+    output: Option<PathBuf>,
+
+    #[cfg_attr(feature = "cli", arg(long, short))]
+    pub pre_analyze: bool,
+}
+
+impl DisasCommand {
+    pub fn input(&self) -> FdResult<Box<dyn Read>> {
+        Ok(if let Some(path) = &self.input {
+            Box::new(BufReader::new(std::fs::File::open(path)?))
+        } else {
+            Box::new(BufReader::new(std::io::stdin()))
+        })
+    }
+
+    pub fn output(&self) -> FdResult<Box<dyn Write>> {
+        Ok(if let Some(path) = &self.output {
+            Box::new(LineWriter::new(
+                std::fs::File::options().write(true).open(path)?,
+            ))
+        } else {
+            Box::new(LineWriter::new(std::io::stdout().lock()))
+        })
+    }
+}
+
+#[cfg_attr(feature = "cli", derive(Subcommand))]
+#[derive(Clone, Debug)]
+pub enum Commands {
+    CtxOrg { address: Address },
+    Disas(DisasCommand),
+}
+
+impl Default for Commands {
+    fn default() -> Self {
+        Self::Disas(Default::default())
+    }
 }
 
 #[cfg_attr(feature = "cli", derive(ValueEnum))]
@@ -55,8 +101,8 @@ impl Display for ArchKind {
 #[cfg_attr(feature = "cli", derive(Parser))]
 #[cfg_attr(feature = "cli", command(author, version, about, long_about = None))]
 pub struct Config {
-    pub input: Option<PathBuf>,
-    pub output: Option<PathBuf>,
+    #[cfg_attr(feature = "cli", command(subcommand))]
+    pub command: Commands,
 
     // built in arch that may be loaded
     #[cfg_attr(feature = "cli", clap(long, short))]
@@ -76,9 +122,6 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long))]
     pub dump_arch: bool,
 
-    #[cfg_attr(feature = "cli", arg(long, short))]
-    pub pre_analyze: bool,
-
     #[cfg_attr(feature = "cli", arg(long))]
     pub dump_ctx: bool,
 
@@ -96,24 +139,6 @@ impl Config {
     #[cfg(not(feature = "cli"))]
     pub fn new() -> Self {
         Default::default()
-    }
-
-    pub fn input(&self) -> FdResult<Box<dyn Read>> {
-        Ok(if let Some(path) = &self.input {
-            Box::new(BufReader::new(std::fs::File::open(path)?))
-        } else {
-            Box::new(BufReader::new(std::io::stdin()))
-        })
-    }
-
-    pub fn output(&self) -> FdResult<Box<dyn Write>> {
-        Ok(if let Some(path) = &self.output {
-            Box::new(LineWriter::new(
-                std::fs::File::options().write(true).open(path)?,
-            ))
-        } else {
-            Box::new(LineWriter::new(std::io::stdout().lock()))
-        })
     }
 }
 
