@@ -659,6 +659,18 @@ impl Context {
     pub fn get_flag(&self, flag: &str) -> Option<&String> {
         self.flags.get(flag)
     }
+
+    pub fn set_start(&mut self, addr: usize) {
+        self.start_read = addr.wrapping_sub(self.org as usize);
+    }
+
+    pub fn set_end(&mut self, addr: Option<usize>) {
+        if let Some(addr) = addr {
+            self.end_read = Some(addr.wrapping_sub(self.org as usize));
+        } else {
+            self.end_read = addr;
+        }
+    }
 }
 
 pub type TransformMap = BTreeMap<String, TransformList>;

@@ -18,8 +18,8 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     } else {
         Context::default()
     };
-    ctx.start_read = cfg.start_read.unwrap_or(0);
-    ctx.end_read = cfg.end_read;
+    ctx.set_start(cfg.start_read.unwrap_or(0));
+    ctx.set_end(cfg.end_read);
     Ok(ctx)
 }
 
