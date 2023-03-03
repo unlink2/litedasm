@@ -19,6 +19,8 @@ pub enum Error {
     UnsupportedFormat(ValueTypeFmt),
     #[error("Arch not found")]
     ArchNotFound(String),
+    #[error("Unable to patch file")]
+    PatchOffsetOutOfRange(usize),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

@@ -31,7 +31,7 @@ pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
         let mut f = std::fs::File::create(path)?;
         f.write_all(&data.into_bytes())?;
     } else {
-        println!("{}", data);
+        println!("{data}");
     }
     Ok(())
 }
@@ -52,7 +52,24 @@ pub fn init(cfg: &Config) -> FdResult<()> {
         crate::prelude::Commands::DumpArch => dump_arch(cfg, &arch),
         crate::prelude::Commands::DumpCtx => dump_ctx(cfg, &ctx),
         crate::prelude::Commands::DefSym(ds) => defsym(cfg, ds, &arch, &mut ctx),
+        crate::prelude::Commands::Patch(d) => patch(cfg, d, &mut ctx),
     }
+}
+
+fn patch(_cfg: &Config, disas: &DisasCommand, ctx: &mut Context) -> FdResult<()> {
+    // set up io
+    let mut input = disas.input()?;
+    let mut output = disas.output()?;
+
+    // read all the input data into a buffer
+    // FIXME this may be bad for larger files!
+    let mut buffer = Vec::new();
+    input.read_to_end(&mut buffer)?;
+
+    let res = ctx.patch(&buffer)?;
+    output.write_all(&res)?;
+
+    Ok(())
 }
 
 fn dump_arch(_cfg: &Config, arch: &Archs) -> FdResult<()> {

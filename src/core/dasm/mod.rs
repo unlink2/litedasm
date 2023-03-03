@@ -8,6 +8,7 @@ use self::arch::{Arch, Node, NodeKind};
 use lazy_static::lazy_static;
 
 pub mod arch;
+pub mod patch;
 pub mod symbols;
 
 pub type Address = u64;

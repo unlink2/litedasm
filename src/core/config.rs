@@ -93,6 +93,7 @@ pub struct DefSym {
     data_type: DefSymDataType,
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Symbol> for DefSym {
     fn into(self) -> Symbol {
         Symbol {
@@ -102,15 +103,19 @@ impl Into<Symbol> for DefSym {
             } else {
                 SymbolKind::Label
             },
-            scope: if self.from == None && self.to == None {
+            scope: if self.from.is_none() && self.to.is_none() {
                 Scope::Global
             } else {
-                Scope::Range(self.from.unwrap_or(0), self.to.unwrap_or(0))
+                Scope::Range(
+                    self.from.unwrap_or(self.to.unwrap_or(0)),
+                    self.to.unwrap_or(self.from.unwrap_or(0)),
+                )
             },
         }
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<SymbolKey> for DefSym {
     fn into(self) -> SymbolKey {
         match self.data_type {
@@ -132,6 +137,7 @@ pub enum Commands {
     Org { address: Address },
     DefSym(DefSym),
     Disas(DisasCommand),
+    Patch(DisasCommand),
     DumpArch,
     DumpCtx,
 }

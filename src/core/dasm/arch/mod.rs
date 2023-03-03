@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::{Error, FdResult};
 
 use super::{
+    patch::Patch,
     symbols::{Scope, Symbol, SymbolKey, SymbolKind, SymbolList},
     Address, DataType, ValueType, ValueTypeFmt,
 };
@@ -603,6 +604,11 @@ pub struct Context {
     pub syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
     pub analyze: bool,
+
+    // a file can optionally be patched from data and
+    // from a patch file
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub patches: Vec<Patch>,
 }
 
 impl Context {
@@ -616,7 +622,14 @@ impl Context {
             analyze: false,
             start_read: 0,
             end_read: None,
+            patches: Default::default(),
         }
+    }
+
+    pub fn patch(&self, data: &[u8]) -> FdResult<Vec<u8>> {
+        let mut data = data.to_vec();
+        self.patches.iter().try_for_each(|x| x.apply(&mut data))?;
+        Ok(data)
     }
 
     pub fn restart(&mut self) {
