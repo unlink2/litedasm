@@ -58,6 +58,8 @@ pub struct DefSym {
     #[cfg_attr(feature = "cli", clap(long, short))]
     to: Option<Address>,
     #[cfg_attr(feature = "cli", clap(long, short))]
+    len: usize,
+    #[cfg_attr(feature = "cli", clap(long, short))]
     const_value: bool,
     name: String,
     pub value: ValueType,
@@ -81,6 +83,8 @@ impl Into<Symbol> for DefSym {
                     self.to.unwrap_or(self.from.unwrap_or(0)),
                 )
             },
+            value: self.value,
+            len: self.len,
         }
     }
 }

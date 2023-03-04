@@ -124,6 +124,6 @@ fn disas(_cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -
 }
 
 fn defsym(cfg: &Config, defsym: &DefSym, _arch: &Archs, ctx: &mut Context) -> FdResult<()> {
-    ctx.def_symbol(defsym.value, defsym.clone().into());
+    ctx.def_symbol(defsym.clone().into());
     write_ctx(cfg, ctx)
 }

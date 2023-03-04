@@ -1,14 +1,7 @@
-use std::collections::BTreeMap;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use super::{Address, ValueType};
-
-/// combination of value and size for a symbol
-/// Using this makes it possible to define symbols with similar
-/// names but different "data types"
-pub type SymbolKey = ValueType;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
@@ -35,6 +28,7 @@ impl Scope {
     }
 }
 
+// TODO implement ord - sort by value and then sort the symbol list
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone, Debug)]
 pub struct Symbol {
@@ -44,11 +38,29 @@ pub struct Symbol {
     pub kind: SymbolKind,
     #[cfg_attr(feature = "serde", serde(default))]
     pub scope: Scope,
+
+    pub value: ValueType,
+    pub len: usize,
 }
 
 impl Symbol {
-    pub fn new(name: String, kind: SymbolKind, scope: Scope) -> Self {
-        Self { name, kind, scope }
+    pub fn new(name: String, kind: SymbolKind, scope: Scope, value: ValueType, len: usize) -> Self {
+        Self {
+            name,
+            kind,
+            scope,
+            value,
+            len,
+        }
+    }
+
+    pub fn is_match(&self, value: ValueType, address: Option<Address>) -> bool {
+        let in_scope = if let Some(address) = address {
+            self.scope.is_in_scope(address)
+        } else {
+            true
+        };
+        value >= self.value && value < self.value + self.len as ValueType && in_scope
     }
 }
 
@@ -56,38 +68,29 @@ impl Symbol {
 #[derive(Default, Clone)]
 pub struct SymbolList {
     #[cfg_attr(feature = "serde", serde(default))]
-    map: BTreeMap<SymbolKey, Vec<Symbol>>,
+    map: Vec<Symbol>,
 }
 
 impl SymbolList {
-    pub fn def_symbol(&mut self, key: SymbolKey, sym: Symbol) {
-        if let Some(v) = self.map.get_mut(&key) {
-            v.push(sym);
-        } else {
-            self.map.insert(key, vec![sym]);
-        }
+    pub fn def_symbol(&mut self, sym: Symbol) {
+        self.map.push(sym);
     }
 
-    // get all symbols for a specific key
-    // the symbols may not in scope!
-    pub fn get_symbols(&self, key: SymbolKey) -> Option<&[Symbol]> {
-        Some(self.map.get(&key)?.as_slice())
-    }
-
-    pub fn get_first_symbol(&self, key: SymbolKey, address: Address) -> Option<&Symbol> {
+    // get all symbols for a specific value
+    pub fn get_symbols(&self, value: ValueType) -> Vec<Symbol> {
         self.map
-            .get(&key)?
             .iter()
-            .find(|x| x.scope.is_in_scope(address))
+            .filter(|x| x.is_match(value, None))
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_first_symbol(&self, value: ValueType, address: Address) -> Option<&Symbol> {
+        self.map.iter().find(|x| x.is_match(value, Some(address)))
     }
 
     // does any symbol in scope exist?
-    pub fn has_symbols(&self, key: SymbolKey, address: Address) -> bool {
-        let iter = self.map.get(&key);
-        if let Some(iter) = iter {
-            iter.iter().any(|x| x.scope.is_in_scope(address))
-        } else {
-            false
-        }
+    pub fn has_symbols(&self, value: ValueType, address: Address) -> bool {
+        self.map.iter().any(|x| x.is_match(value, Some(address)))
     }
 }
