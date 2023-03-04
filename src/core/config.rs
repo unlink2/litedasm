@@ -1,6 +1,7 @@
 use std::{
     fmt::Display,
     io::{BufReader, LineWriter, Read, Write},
+    num::ParseIntError,
     path::PathBuf,
 };
 
@@ -53,15 +54,16 @@ impl DisasCommand {
 #[cfg_attr(feature = "cli", derive(Args))]
 #[derive(Clone, Debug, Default)]
 pub struct DefSym {
-    #[cfg_attr(feature = "cli", clap(long, short))]
+    #[cfg_attr(feature = "cli", clap(long, short, value_parser = auto_radix_address))]
     from: Option<Address>,
-    #[cfg_attr(feature = "cli", clap(long, short))]
+    #[cfg_attr(feature = "cli", clap(long, short, value_parser = auto_radix_address))]
     to: Option<Address>,
     #[cfg_attr(feature = "cli", clap(long, short))]
-    len: usize,
+    len: Option<usize>,
     #[cfg_attr(feature = "cli", clap(long, short))]
     const_value: bool,
     name: String,
+    #[cfg_attr(feature = "cli", clap(value_parser = auto_radix_value))]
     pub value: ValueType,
 }
 
@@ -84,7 +86,7 @@ impl Into<Symbol> for DefSym {
                 )
             },
             value: self.value,
-            len: self.len,
+            len: self.len.unwrap_or(1),
         }
     }
 }
@@ -92,7 +94,10 @@ impl Into<Symbol> for DefSym {
 #[cfg_attr(feature = "cli", derive(Subcommand))]
 #[derive(Clone, Debug)]
 pub enum Commands {
-    Org { address: Address },
+    Org {
+        #[cfg_attr(feature = "cli", arg(value_parser = auto_radix_address))]
+        address: Address,
+    },
     DefSym(DefSym),
     Disas(DisasCommand),
     Patch(DisasCommand),
@@ -141,6 +146,36 @@ impl Display for ArchKind {
     }
 }
 
+fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
+    if s.starts_with("0x") {
+        let s = &s[2..];
+        ValueType::from_str_radix(s, 16)
+    } else if s.starts_with("0b") {
+        let s = &s[2..];
+        ValueType::from_str_radix(s, 2)
+    } else if s.starts_with("0o") {
+        let s = &s[2..];
+        ValueType::from_str_radix(s, 8)
+    } else {
+        ValueType::from_str_radix(s, 10)
+    }
+}
+
+fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
+    if s.starts_with("0x") {
+        let s = &s[2..];
+        Address::from_str_radix(s, 16)
+    } else if s.starts_with("0b") {
+        let s = &s[2..];
+        Address::from_str_radix(s, 2)
+    } else if s.starts_with("0o") {
+        let s = &s[2..];
+        Address::from_str_radix(s, 8)
+    } else {
+        Address::from_str_radix(s, 10)
+    }
+}
+
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "cli", derive(Parser))]
 #[cfg_attr(feature = "cli", command(author, version, about, long_about = None))]
@@ -169,7 +204,7 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long, short))]
     pub end_read: Option<usize>,
 
-    #[cfg_attr(feature = "cli", arg(long))]
+    #[cfg_attr(feature = "cli", arg(long, value_parser = auto_radix_address))]
     pub org: Option<Address>,
 
     #[cfg_attr(feature = "cli", clap(long, value_name = "SHELL"))]
