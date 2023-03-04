@@ -6,8 +6,8 @@ use std::{
 
 use super::dasm::{
     arch::{a6502, a65c02, a65c816, Archs},
-    symbols::{Scope, Symbol, SymbolKey, SymbolKind},
-    Address,
+    symbols::{Scope, Symbol, SymbolKind},
+    Address, ValueType,
 };
 use crate::prelude::FdResult;
 #[cfg(feature = "cli")]
@@ -50,35 +50,6 @@ impl DisasCommand {
     }
 }
 
-#[cfg_attr(feature = "cli", derive(ValueEnum))]
-#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Debug)]
-pub enum DefSymDataType {
-    U8,
-    U16,
-    #[default]
-    U32,
-    U64,
-    I8,
-    I16,
-    I32,
-    I64,
-}
-
-impl Display for DefSymDataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DefSymDataType::U8 => write!(f, "u8"),
-            DefSymDataType::U16 => write!(f, "u16"),
-            DefSymDataType::U32 => write!(f, "u32"),
-            DefSymDataType::U64 => write!(f, "u64"),
-            DefSymDataType::I8 => write!(f, "i8"),
-            DefSymDataType::I16 => write!(f, "i16"),
-            DefSymDataType::I32 => write!(f, "i32"),
-            DefSymDataType::I64 => write!(f, "i64"),
-        }
-    }
-}
-
 #[cfg_attr(feature = "cli", derive(Args))]
 #[derive(Clone, Debug, Default)]
 pub struct DefSym {
@@ -89,8 +60,7 @@ pub struct DefSym {
     #[cfg_attr(feature = "cli", clap(long, short))]
     const_value: bool,
     name: String,
-    value: i64,
-    data_type: DefSymDataType,
+    pub value: ValueType,
 }
 
 #[allow(clippy::from_over_into)]
@@ -111,22 +81,6 @@ impl Into<Symbol> for DefSym {
                     self.to.unwrap_or(self.from.unwrap_or(0)),
                 )
             },
-        }
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<SymbolKey> for DefSym {
-    fn into(self) -> SymbolKey {
-        match self.data_type {
-            DefSymDataType::U8 => SymbolKey::U8(self.value as u8),
-            DefSymDataType::U16 => SymbolKey::U16(self.value as u16),
-            DefSymDataType::U32 => SymbolKey::U32(self.value as u32),
-            DefSymDataType::U64 => SymbolKey::U64(self.value as u64),
-            DefSymDataType::I8 => SymbolKey::I8(self.value as i8),
-            DefSymDataType::I16 => SymbolKey::I16(self.value as i16),
-            DefSymDataType::I32 => SymbolKey::I32(self.value as i32),
-            DefSymDataType::I64 => SymbolKey::I64(self.value),
         }
     }
 }

@@ -19,6 +19,7 @@ pub type Address = u64;
 pub enum DataType {
     U8,
     U16,
+    U24,
     U32,
     U64,
     I8,
@@ -34,12 +35,24 @@ impl DataType {
         match self {
             DataType::U8 => 1,
             DataType::U16 => 2,
+            DataType::U24 => 3,
             DataType::U32 => 4,
             DataType::U64 => 8,
             DataType::I8 => 1,
             DataType::I16 => 2,
             DataType::I32 => 4,
             DataType::I64 => 8,
+            DataType::None => 0,
+        }
+    }
+
+    pub fn mask(&self) -> ValueType {
+        match self {
+            DataType::U8 | DataType::I8 => 0xFF as ValueType,
+            DataType::U16 | DataType::I16 => 0xFFFF as ValueType,
+            DataType::U32 | DataType::I32 => 0xFFFFFFFF as ValueType,
+            DataType::U64 | DataType::I64 => -1 as ValueType,
+            DataType::U24 => 0xFFF,
             DataType::None => 0,
         }
     }
@@ -96,38 +109,7 @@ impl ValueTypeFmt {
 }
 
 // The corresponding data type holding a value
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Debug)]
-pub enum ValueType {
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    #[default]
-    None,
-}
-
-// FIXME: Maybe implement From in the future
-#[allow(clippy::from_over_into)]
-impl Into<Address> for ValueType {
-    fn into(self) -> Address {
-        match self {
-            ValueType::U8(v) => v as Address,
-            ValueType::U16(v) => v as Address,
-            ValueType::U32(v) => v as Address,
-            ValueType::U64(v) => v as Address,
-            ValueType::I8(v) => v as Address,
-            ValueType::I16(v) => v as Address,
-            ValueType::I32(v) => v as Address,
-            ValueType::I64(v) => v as Address,
-            ValueType::None => 0,
-        }
-    }
-}
+pub type ValueType = i64;
 
 macro_rules! format_value_type {
     ($val: expr, $fmt:expr, $pre:expr, $post:expr) => {
@@ -155,41 +137,13 @@ lazy_static! {
     static ref EMPTY_NODE: Node = Node::new(String::new());
 }
 
-impl ValueType {
-    // convert an address into the corresponding addrress type
-    // this guarantees overflow will be dealt with correctly
-    pub fn from(address: Address, addr_type: DataType) -> Self {
-        match addr_type {
-            DataType::U8 => Self::U8(address as u8),
-            DataType::U16 => Self::U16(address as u16),
-            DataType::U32 => Self::U32(address as u32),
-            DataType::U64 => Self::U64(address),
-            DataType::I8 => Self::I8(address as i8),
-            DataType::I16 => Self::I16(address as i16),
-            DataType::I32 => Self::I32(address as i32),
-            DataType::I64 => Self::I64(address as i64),
-            DataType::None => panic!("Address type cannot be none!"),
-        }
-    }
-
-    pub fn try_to_node(&self, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
-        let pre = arch.node_map.get(fmt.pre()).unwrap_or(&EMPTY_NODE);
-        let post = arch.node_map.get(fmt.post()).unwrap_or(&EMPTY_NODE);
-        let node: FdResult<Node> = match self {
-            ValueType::U8(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::U16(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::U32(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::U64(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::I8(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::I16(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::I32(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::I64(v) => format_value_type!(v, fmt, pre, post),
-            ValueType::None => Ok(Node::new("None".into())),
-        };
-        let mut node = node?;
-        node.kind = NodeKind::Value(*self);
-        Ok(node)
-    }
+pub fn try_to_node(v: ValueType, fmt: ValueTypeFmt, arch: &Arch) -> FdResult<Node> {
+    let pre = arch.node_map.get(fmt.pre()).unwrap_or(&EMPTY_NODE);
+    let post = arch.node_map.get(fmt.post()).unwrap_or(&EMPTY_NODE);
+    let node: FdResult<Node> = format_value_type!(v, fmt, pre, post);
+    let mut node = node?;
+    node.kind = NodeKind::Value(v);
+    Ok(node)
 }
 
 #[cfg(test)]
@@ -392,7 +346,7 @@ mod test {
             let mut ctx = Context::default();
 
             ctx.def_symbol(
-                super::ValueType::U32(0x123456),
+                0x123456,
                 Symbol::new(
                     "test".into(),
                     SymbolKind::Label,
@@ -422,7 +376,7 @@ mod test {
             let mut ctx = Context::default();
 
             ctx.def_symbol(
-                super::ValueType::U32(0x05),
+                0x05,
                 Symbol::new(
                     "test".into(),
                     SymbolKind::Label,
@@ -444,7 +398,7 @@ mod test {
             let mut ctx = Context::default();
 
             ctx.def_symbol(
-                super::ValueType::U16(0x1234),
+                0x1234,
                 Symbol::new(
                     "test".into(),
                     SymbolKind::Label,
@@ -498,7 +452,7 @@ mod test {
     fn labels() {
         let mut ctx = Context::default();
         ctx.def_symbol(
-            super::ValueType::U16(0x2),
+            0x2,
             Symbol::new(
                 "test".into(),
                 SymbolKind::Label,
@@ -506,7 +460,7 @@ mod test {
             ),
         );
         ctx.def_symbol(
-            super::ValueType::U16(0xE),
+            0xE,
             Symbol::new(
                 "test2".into(),
                 SymbolKind::Label,
@@ -514,7 +468,7 @@ mod test {
             ),
         );
         ctx.def_symbol(
-            super::ValueType::U16(0x2),
+            0x2,
             Symbol::new(
                 "scoped_test_out".into(),
                 SymbolKind::Label,
@@ -522,7 +476,7 @@ mod test {
             ),
         );
         ctx.def_symbol(
-            super::ValueType::U16(0x2),
+            0x2,
             Symbol::new(
                 "scoped_test_in".into(),
                 SymbolKind::Label,
@@ -530,23 +484,16 @@ mod test {
             ),
         );
         ctx.def_symbol(
-            super::ValueType::U16(0x2),
+            0x2,
             Symbol::new(
                 "const_test".into(),
                 SymbolKind::Const,
                 super::symbols::Scope::Global,
             ),
         );
+
         ctx.def_symbol(
-            super::ValueType::U8(0x2),
-            Symbol::new(
-                "const_test_u8".into(),
-                SymbolKind::Const,
-                super::symbols::Scope::Global,
-            ),
-        );
-        ctx.def_symbol(
-            super::ValueType::U32(0x2),
+            0x2,
             Symbol::new(
                 "type_test".into(),
                 SymbolKind::Label,
@@ -565,7 +512,7 @@ mod test {
             &a6502::ARCH,
             &mut ctx,
             &[0x4C, 0x0E, 0x00, 0xEA, 0x10, (2_i8) as u8, 0xA9, 0x2],
-            "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n0000000c lda #const_test_u8\n",
+            "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n0000000c lda #test\n",
             14,
         );
     }

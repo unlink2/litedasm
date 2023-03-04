@@ -61,9 +61,6 @@ pub struct SymbolList {
 
 impl SymbolList {
     pub fn def_symbol(&mut self, key: SymbolKey, sym: Symbol) {
-        if key == SymbolKey::None {
-            panic!("It is not possible to define a symbol with a key of None!");
-        }
         if let Some(v) = self.map.get_mut(&key) {
             v.push(sym);
         } else {

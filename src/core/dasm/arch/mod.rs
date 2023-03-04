@@ -12,7 +12,7 @@ use crate::prelude::{Error, FdResult};
 use super::{
     patch::Patch,
     symbols::{Scope, Symbol, SymbolKey, SymbolKind, SymbolList},
-    Address, DataType, ValueType, ValueTypeFmt,
+    try_to_node, Address, DataType, ValueType, ValueTypeFmt,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -133,12 +133,7 @@ pub struct ValOut {
     fmt: ValueTypeFmt,
     #[cfg_attr(feature = "serde", serde(default))]
     data_type: DataType,
-    // it is possible to provide a data lenght override if required
-    // the data transformer will automatically pad to the correct size
-    // required by the data type,
-    // but the read data will only be the spezified amount of bytes
-    #[cfg_attr(feature = "serde", serde(default))]
-    data_len_override: Option<usize>,
+
     #[cfg_attr(feature = "serde", serde(default))]
     rel: bool,
 
@@ -215,7 +210,7 @@ impl Transform {
         let dt = self.data_type(arch.addr_type);
 
         if ctx.analyze {
-            self.analyze(f, data, arch, ctx, matcher_name, dt)?;
+            self.analyze(f, data, arch, ctx, matcher_name)?;
         } else {
             self.no_analyze(f, data, arch, ctx, matcher_name, dt)?;
         }
@@ -287,11 +282,10 @@ impl Transform {
         arch: &Arch,
         ctx: &mut Context,
         _matcher_name: &Node,
-        dt: DataType,
     ) -> FdResult<()> {
         match self {
             Transform::DefSym(ds) => ctx.def_symbol(
-                Self::to_value(data, dt, arch)?,
+                Self::to_value(data, arch)?,
                 Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
             ),
             Transform::DefSymAddress(ds) => ctx.def_symbol(
@@ -312,7 +306,7 @@ impl Transform {
     ) -> FdResult<()> {
         let labels = ctx
             .syms
-            .get_symbols(ValueType::from(ctx.address(), arch.addr_type))
+            .get_symbols(ctx.address() as ValueType)
             .unwrap_or(&[]);
         let mut result = "".to_owned();
         for label in labels {
@@ -331,12 +325,18 @@ impl Transform {
         ctx: &mut Context,
         ao: &ValOut,
     ) -> FdResult<()> {
-        let value = Self::to_value(data, ao.data_type, arch)?;
+        let value = Self::to_value(data, arch)?;
 
         let sym_val = if ao.rel {
-            let addr: Address = value.into();
-            let addr = addr.wrapping_add(ctx.address());
-            ValueType::from(addr, arch.addr_type)
+            let addr = (ctx.address() as ValueType).wrapping_add(value);
+            println!(
+                "{:X} , {:X} = {:X} & {:X}",
+                value,
+                ctx.address(),
+                addr,
+                ao.data_type.mask()
+            );
+            addr as ValueType & ao.data_type.mask()
         } else {
             value
         };
@@ -346,7 +346,7 @@ impl Transform {
                 f(&Node::new(sym.name.to_owned()), data, arch, ctx)?
             }
         } else if !ctx.analyze {
-            f(&value.try_to_node(ao.fmt, arch)?, data, arch, ctx)?
+            f(&try_to_node(value, ao.fmt, arch)?, data, arch, ctx)?
         } else if ao.auto_def_sym {
             let name = format!("auto_{}", ctx.address());
             ctx.def_symbol(value, Symbol::new(name, SymbolKind::Label, Scope::Global));
@@ -357,21 +357,15 @@ impl Transform {
 
     fn to_addr(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
         arch.endianess
-            .transform(data, arch.addr_type)
+            .transform(data)
             .ok_or(Error::TransformOutOfData(0))
     }
 
-    fn to_value(data: &[u8], data_type: DataType, arch: &Arch) -> FdResult<ValueType> {
-        if data.len() < data_type.data_len() {
-            let data = arch.endianess.pad(data, data_type.data_len());
-            arch.endianess
-                .transform(&data, data_type)
-                .ok_or(Error::TransformOutOfData(0))
-        } else {
-            arch.endianess
-                .transform(data, data_type)
-                .ok_or(Error::TransformOutOfData(0))
-        }
+    fn to_value(data: &[u8], arch: &Arch) -> FdResult<ValueType> {
+        let data = arch.endianess.pad(data, std::mem::size_of::<ValueType>());
+        arch.endianess
+            .transform(&data)
+            .ok_or(Error::TransformOutOfData(0))
     }
 
     fn data_type(&self, addr_type: DataType) -> DataType {
@@ -403,13 +397,7 @@ impl Transform {
     // returns amount of bytes that should be consumed
     fn data_len(&self) -> usize {
         match self {
-            Transform::Val(dt) => {
-                if let Some(len) = dt.data_len_override {
-                    len
-                } else {
-                    dt.data_type.data_len()
-                }
-            }
+            Transform::Val(dt) => dt.data_type.data_len(),
             Transform::Consume(skip) => *skip,
             _ => 0,
         }
@@ -522,11 +510,11 @@ pub enum Endianess {
 }
 
 impl Endianess {
-    pub fn transform(&self, data: &[u8], dt: DataType) -> Option<ValueType> {
+    pub fn transform(&self, data: &[u8]) -> Option<ValueType> {
         if self == &Self::Little {
-            Self::transform_le(data, dt)
+            Self::transform_le(data)
         } else {
-            Self::transform_be(data, dt)
+            Self::transform_be(data)
         }
     }
 
@@ -552,32 +540,12 @@ impl Endianess {
         }
     }
 
-    fn transform_le(data: &[u8], dt: DataType) -> Option<ValueType> {
-        Some(match dt {
-            DataType::U8 => ValueType::U8(u8::from_le_bytes(data.try_into().ok()?)),
-            DataType::U16 => ValueType::U16(u16::from_le_bytes(data.try_into().ok()?)),
-            DataType::U32 => ValueType::U32(u32::from_le_bytes(data.try_into().ok()?)),
-            DataType::U64 => ValueType::U64(u64::from_le_bytes(data.try_into().ok()?)),
-            DataType::None => ValueType::None,
-            DataType::I8 => ValueType::I8(i8::from_le_bytes(data.try_into().ok()?)),
-            DataType::I16 => ValueType::I16(i16::from_le_bytes(data.try_into().ok()?)),
-            DataType::I32 => ValueType::I32(i32::from_le_bytes(data.try_into().ok()?)),
-            DataType::I64 => ValueType::I64(i64::from_le_bytes(data.try_into().ok()?)),
-        })
+    fn transform_le(data: &[u8]) -> Option<ValueType> {
+        Some(ValueType::from_le_bytes(data.try_into().ok()?))
     }
 
-    fn transform_be(data: &[u8], dt: DataType) -> Option<ValueType> {
-        Some(match dt {
-            DataType::U8 => ValueType::U8(u8::from_be_bytes(data.try_into().ok()?)),
-            DataType::U16 => ValueType::U16(u16::from_be_bytes(data.try_into().ok()?)),
-            DataType::U32 => ValueType::U32(u32::from_be_bytes(data.try_into().ok()?)),
-            DataType::U64 => ValueType::U64(u64::from_be_bytes(data.try_into().ok()?)),
-            DataType::None => ValueType::None,
-            DataType::I8 => ValueType::I8(i8::from_be_bytes(data.try_into().ok()?)),
-            DataType::I16 => ValueType::I16(i16::from_be_bytes(data.try_into().ok()?)),
-            DataType::I32 => ValueType::I32(i32::from_be_bytes(data.try_into().ok()?)),
-            DataType::I64 => ValueType::I64(i64::from_be_bytes(data.try_into().ok()?)),
-        })
+    fn transform_be(data: &[u8]) -> Option<ValueType> {
+        Some(ValueType::from_be_bytes(data.try_into().ok()?))
     }
 }
 

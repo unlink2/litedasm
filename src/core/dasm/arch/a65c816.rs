@@ -128,8 +128,7 @@ fn transform_long(map: &mut TransformMap) {
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
-                data_type: DataType::U32,
-                data_len_override: Some(3),
+                data_type: DataType::U24,
                 ..Default::default()
             }),
         ],
@@ -146,8 +145,7 @@ fn transform_long_x(map: &mut TransformMap) {
             Transform::Val(ValOut {
                 offset: 0,
                 fmt: ValueTypeFmt::LowerHex(2),
-                data_type: DataType::U32,
-                data_len_override: Some(3),
+                data_type: DataType::U24,
                 ..Default::default()
             }),
             Transform::Static(Node::new(", x".into())),
