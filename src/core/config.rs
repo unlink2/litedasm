@@ -162,7 +162,6 @@ fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
 }
 
 fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
-    println!("{}", s);
     if s.starts_with("0x") {
         let s = &s[2..];
         Address::from_str_radix(s, 16)
