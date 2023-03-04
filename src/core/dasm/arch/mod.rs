@@ -305,7 +305,6 @@ impl Transform {
         Ok(())
     }
 
-    // TODO implement +1 and +2 for labels that are found to account for label length
     fn output_label(
         &self,
         f: &mut dyn DisasCallback,
@@ -335,13 +334,6 @@ impl Transform {
 
         let sym_val = if ao.rel {
             let addr = (ctx.address() as ValueType).wrapping_add(value);
-            println!(
-                "{:X} , {:X} = {:X} & {:X}",
-                value,
-                ctx.address(),
-                addr,
-                ao.data_type.mask()
-            );
             addr as ValueType & ao.data_type.mask()
         } else {
             value
@@ -349,7 +341,14 @@ impl Transform {
 
         if let Some(sym) = ctx.get_first_symbol(sym_val) {
             if !ctx.analyze {
-                f(&Node::new(sym.name.to_owned()), data, arch, ctx)?
+                let sym_name = if sym.value == sym_val {
+                    sym.name.to_owned()
+                } else {
+                    // represent the actual difference between the current
+                    // value and the symbol's value here
+                    format!("{}+{}", sym.name, sym_val - sym.value)
+                };
+                f(&Node::new(sym_name), data, arch, ctx)?
             }
         } else if !ctx.analyze {
             f(&try_to_node(value, ao.fmt, arch)?, data, arch, ctx)?

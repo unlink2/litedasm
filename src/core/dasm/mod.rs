@@ -483,6 +483,13 @@ mod test {
             0x2,
             1,
         ));
+        ctx.def_symbol(Symbol::new(
+            "len_test".into(),
+            SymbolKind::Const,
+            super::symbols::Scope::Global,
+            0x10,
+            3,
+        ));
 
         ctx.def_symbol(Symbol::new(
             "type_test".into(),
@@ -505,6 +512,14 @@ mod test {
             &[0x4C, 0x0E, 0x00, 0xEA, 0x10, (2_i8) as u8, 0xA9, 0x2],
             "00000006 jmp test2\n00000009 nop\n0000000a bpl test2\n0000000c lda #test\n",
             14,
+        );
+
+        test_arch_result_ctx(
+            &a6502::ARCH,
+            &mut ctx,
+            &[0x69, 0x11, 0x69, 0x12, 0x69, 0x13],
+            "test2:\n0000000e adc #len_test+1\n00000010 adc #len_test+2\n00000012 adc #$13\n",
+            20,
         );
     }
 }
