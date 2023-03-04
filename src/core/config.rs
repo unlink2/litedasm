@@ -177,7 +177,6 @@ fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
 }
 
 fn auto_radix_usize(s: &str) -> Result<usize, ParseIntError> {
-    println!("{}", s);
     if s.starts_with("0x") {
         let s = &s[2..];
         usize::from_str_radix(s, 16)
