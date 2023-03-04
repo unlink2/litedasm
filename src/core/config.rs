@@ -162,6 +162,7 @@ fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
 }
 
 fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
+    println!("{}", s);
     if s.starts_with("0x") {
         let s = &s[2..];
         Address::from_str_radix(s, 16)
@@ -173,6 +174,22 @@ fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
         Address::from_str_radix(s, 8)
     } else {
         Address::from_str_radix(s, 10)
+    }
+}
+
+fn auto_radix_usize(s: &str) -> Result<usize, ParseIntError> {
+    println!("{}", s);
+    if s.starts_with("0x") {
+        let s = &s[2..];
+        usize::from_str_radix(s, 16)
+    } else if s.starts_with("0b") {
+        let s = &s[2..];
+        usize::from_str_radix(s, 2)
+    } else if s.starts_with("0o") {
+        let s = &s[2..];
+        usize::from_str_radix(s, 8)
+    } else {
+        usize::from_str_radix(s, 10)
     }
 }
 
@@ -198,10 +215,10 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(short, long, action = clap::ArgAction::Count))]
     pub verbose: u8,
 
-    #[cfg_attr(feature = "cli", arg(long, short))]
+    #[cfg_attr(feature = "cli", arg(long, short, value_parser = auto_radix_usize))]
     pub start_read: Option<usize>,
 
-    #[cfg_attr(feature = "cli", arg(long, short))]
+    #[cfg_attr(feature = "cli", arg(long, short, value_parser = auto_radix_usize))]
     pub end_read: Option<usize>,
 
     #[cfg_attr(feature = "cli", arg(long, value_parser = auto_radix_address))]
