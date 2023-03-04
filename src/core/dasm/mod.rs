@@ -345,14 +345,13 @@ mod test {
         {
             let mut ctx = Context::default();
 
-            ctx.def_symbol(
+            ctx.def_symbol(Symbol::new(
+                "test".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Global,
                 0x123456,
-                Symbol::new(
-                    "test".into(),
-                    SymbolKind::Label,
-                    super::symbols::Scope::Global,
-                ),
-            );
+                1,
+            ));
 
             test_arch_result_ctx(
                 &a65c816::ARCH,
@@ -375,14 +374,13 @@ mod test {
         {
             let mut ctx = Context::default();
 
-            ctx.def_symbol(
+            ctx.def_symbol(Symbol::new(
+                "test".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Global,
                 0x05,
-                Symbol::new(
-                    "test".into(),
-                    SymbolKind::Label,
-                    super::symbols::Scope::Global,
-                ),
-            );
+                1,
+            ));
 
             test_arch_result_ctx(
                 &a65c816::ARCH,
@@ -397,14 +395,13 @@ mod test {
         {
             let mut ctx = Context::default();
 
-            ctx.def_symbol(
+            ctx.def_symbol(Symbol::new(
+                "test".into(),
+                SymbolKind::Label,
+                super::symbols::Scope::Global,
                 0x1234,
-                Symbol::new(
-                    "test".into(),
-                    SymbolKind::Label,
-                    super::symbols::Scope::Global,
-                ),
-            );
+                1,
+            ));
 
             test_arch_result_ctx(
                 &a65c816::ARCH,
@@ -451,55 +448,49 @@ mod test {
     #[test]
     fn labels() {
         let mut ctx = Context::default();
-        ctx.def_symbol(
+        ctx.def_symbol(Symbol::new(
+            "test".into(),
+            SymbolKind::Label,
+            super::symbols::Scope::Global,
             0x2,
-            Symbol::new(
-                "test".into(),
-                SymbolKind::Label,
-                super::symbols::Scope::Global,
-            ),
-        );
-        ctx.def_symbol(
+            1,
+        ));
+        ctx.def_symbol(Symbol::new(
+            "test2".into(),
+            SymbolKind::Label,
+            super::symbols::Scope::Global,
             0xE,
-            Symbol::new(
-                "test2".into(),
-                SymbolKind::Label,
-                super::symbols::Scope::Global,
-            ),
-        );
-        ctx.def_symbol(
+            1,
+        ));
+        ctx.def_symbol(Symbol::new(
+            "scoped_test_out".into(),
+            SymbolKind::Label,
+            super::symbols::Scope::Range(0x00, 0x01),
             0x2,
-            Symbol::new(
-                "scoped_test_out".into(),
-                SymbolKind::Label,
-                super::symbols::Scope::Range(0x00, 0x01),
-            ),
-        );
-        ctx.def_symbol(
+            1,
+        ));
+        ctx.def_symbol(Symbol::new(
+            "scoped_test_in".into(),
+            SymbolKind::Label,
+            super::symbols::Scope::Range(0x01, 0x03),
             0x2,
-            Symbol::new(
-                "scoped_test_in".into(),
-                SymbolKind::Label,
-                super::symbols::Scope::Range(0x01, 0x03),
-            ),
-        );
-        ctx.def_symbol(
+            1,
+        ));
+        ctx.def_symbol(Symbol::new(
+            "const_test".into(),
+            SymbolKind::Const,
+            super::symbols::Scope::Global,
             0x2,
-            Symbol::new(
-                "const_test".into(),
-                SymbolKind::Const,
-                super::symbols::Scope::Global,
-            ),
-        );
+            1,
+        ));
 
-        ctx.def_symbol(
+        ctx.def_symbol(Symbol::new(
+            "type_test".into(),
+            SymbolKind::Label,
+            super::symbols::Scope::Range(0x00, 0x01),
             0x2,
-            Symbol::new(
-                "type_test".into(),
-                SymbolKind::Label,
-                super::symbols::Scope::Range(0x00, 0x01),
-            ),
-        );
+            1,
+        ));
         test_arch_result_ctx(
             &a6502::ARCH,
             &mut ctx,

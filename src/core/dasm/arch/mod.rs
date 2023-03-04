@@ -11,7 +11,7 @@ use crate::prelude::{Error, FdResult};
 
 use super::{
     patch::Patch,
-    symbols::{Scope, Symbol, SymbolKey, SymbolKind, SymbolList},
+    symbols::{Scope, Symbol, SymbolKind, SymbolList},
     try_to_node, Address, DataType, ValueType, ValueTypeFmt,
 };
 
@@ -122,6 +122,8 @@ pub struct DefSym {
     symbol_kind: SymbolKind,
     #[cfg_attr(feature = "serde", serde(default))]
     rel: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    len: usize,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -284,19 +286,26 @@ impl Transform {
         _matcher_name: &Node,
     ) -> FdResult<()> {
         match self {
-            Transform::DefSym(ds) => ctx.def_symbol(
+            Transform::DefSym(ds) => ctx.def_symbol(Symbol::new(
+                ds.name.clone(),
+                ds.symbol_kind,
+                ds.scope,
                 Self::to_value(data, arch)?,
-                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
-            ),
-            Transform::DefSymAddress(ds) => ctx.def_symbol(
+                ds.len,
+            )),
+            Transform::DefSymAddress(ds) => ctx.def_symbol(Symbol::new(
+                ds.name.clone(),
+                ds.symbol_kind,
+                ds.scope,
                 Self::to_addr(data, arch)?,
-                Symbol::new(ds.name.clone(), ds.symbol_kind, ds.scope),
-            ),
+                ds.len,
+            )),
             _ => {}
         }
         Ok(())
     }
 
+    // TODO implement +1 and +2 for labels that are found to account for label length
     fn output_label(
         &self,
         f: &mut dyn DisasCallback,
@@ -304,10 +313,7 @@ impl Transform {
         arch: &Arch,
         ctx: &mut Context,
     ) -> FdResult<()> {
-        let labels = ctx
-            .syms
-            .get_symbols(ctx.address() as ValueType)
-            .unwrap_or(&[]);
+        let labels = ctx.syms.get_symbols(ctx.address() as ValueType);
         let mut result = "".to_owned();
         for label in labels {
             if label.scope.is_in_scope(ctx.address()) && label.kind == SymbolKind::Label {
@@ -349,7 +355,13 @@ impl Transform {
             f(&try_to_node(value, ao.fmt, arch)?, data, arch, ctx)?
         } else if ao.auto_def_sym {
             let name = format!("auto_{}", ctx.address());
-            ctx.def_symbol(value, Symbol::new(name, SymbolKind::Label, Scope::Global));
+            ctx.def_symbol(Symbol::new(
+                name,
+                SymbolKind::Label,
+                Scope::Global,
+                value,
+                1,
+            ));
         }
 
         Ok(())
@@ -608,12 +620,12 @@ impl Context {
         self.org + self.offset
     }
 
-    pub fn def_symbol(&mut self, key: SymbolKey, sym: Symbol) {
-        self.syms.def_symbol(key, sym);
+    pub fn def_symbol(&mut self, sym: Symbol) {
+        self.syms.def_symbol(sym);
     }
 
-    pub fn get_first_symbol(&self, key: SymbolKey) -> Option<&Symbol> {
-        self.syms.get_first_symbol(key, self.address())
+    pub fn get_first_symbol(&self, value: ValueType) -> Option<&Symbol> {
+        self.syms.get_first_symbol(value, self.address())
     }
 
     pub fn def_flag(&mut self, flag: &str, value: &str) {
