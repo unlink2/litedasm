@@ -158,6 +158,8 @@ pub enum Transform {
     /// from the array
     /// AbsXX takes the offset and radix
     Val(ValOut),
+    /// Outputs the data received as a raw byte dump
+    Raw,
     // output label at current address
     Label,
     /// A static node that can be applied at any point
@@ -206,7 +208,7 @@ impl Transform {
         // get all data, if no data is available just return with an error
         // since a transform should *never* be out of data
         // assuming the pattern is defined correctly!
-        let data = Self::get_data(data, self.offset(), self.read_len(arch.addr_type))
+        let data = Self::get_data(data, self.offset(), self.read_len(arch.addr_type, data))
             .ok_or(Error::TransformOutOfData(ctx.org))?;
 
         let dt = self.data_type(arch.addr_type);
@@ -232,6 +234,7 @@ impl Transform {
     ) -> FdResult<()> {
         match self {
             Transform::Val(ao) => self.output_value(f, data, arch, ctx, ao)?,
+            Transform::Raw => self.output_raw(f, data, arch, ctx)?,
             Transform::Label => self.output_label(f, data, arch, ctx)?,
             Transform::Static(s) => f(s, data, arch, ctx)?,
             Transform::MatcherName => f(matcher_name, data, arch, ctx)?,
@@ -322,6 +325,37 @@ impl Transform {
         f(&Node::new(result), data, arch, ctx)
     }
 
+    fn output_raw(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        if !ctx.allow_raw || data.is_empty() {
+            return Ok(());
+        }
+        f(&Node::new(" [".into()), &[], arch, ctx)?;
+
+        let space_node = Node::new(" ".into());
+
+        let mut first = true;
+        for byte in data {
+            if !first {
+                f(&space_node, &[], arch, ctx)?;
+            }
+            first = false;
+            f(
+                &try_to_node(*byte as ValueType, ValueTypeFmt::LowerHex(2), arch)?,
+                &[*byte],
+                arch,
+                ctx,
+            )?;
+        }
+        f(&Node::new("]".into()), &[], arch, ctx)?;
+        Ok(())
+    }
+
     fn output_value(
         &self,
         f: &mut dyn DisasCallback,
@@ -389,9 +423,10 @@ impl Transform {
     }
 
     // returns amount of bytes that should be read, but *not* consumed
-    fn read_len(&self, addr_type: DataType) -> usize {
+    fn read_len(&self, addr_type: DataType, data: &[u8]) -> usize {
         match self {
             Transform::Val(_) => self.data_len(),
+            Transform::Raw => data.len(),
             _ => self.data_type(addr_type).data_len(),
         }
     }
@@ -583,6 +618,8 @@ pub struct Context {
     pub syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
     pub analyze: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub allow_raw: bool,
 
     // a file can optionally be patched from data and
     // from a patch file
@@ -602,6 +639,7 @@ impl Context {
             start_read: 0,
             end_read: None,
             patches: Default::default(),
+            allow_raw: false,
         }
     }
 
@@ -710,7 +748,7 @@ impl Arch {
             if pattern.is_match(self, ctx, data) {
                 let mut res = self.match_additional_patterns(f, data, ctx, &self.pre_patterns)?;
                 res += pattern.transform(&mut *f, &data[res..], self, ctx)?;
-                res += self.match_additional_patterns(f, &data[res..], ctx, &self.post_patterns)?;
+                res += self.match_additional_patterns(f, &data[..res], ctx, &self.post_patterns)?;
 
                 return Ok(res);
             }
@@ -725,14 +763,13 @@ impl Arch {
         ctx: &mut Context,
         patterns: &MatcherList,
     ) -> FdResult<usize> {
+        let mut res = 0;
         for pattern in patterns.iter() {
             if pattern.is_match(self, ctx, data) {
-                let res = pattern.transform(&mut *f, data, self, ctx)?;
-
-                return Ok(res);
+                res += pattern.transform(&mut *f, data, self, ctx)?;
             }
         }
-        Ok(0)
+        Ok(res)
     }
 
     pub fn get_transform(&self, name: &str) -> Option<&TransformList> {
