@@ -169,6 +169,9 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long, short))]
     pub end_read: Option<usize>,
 
+    #[cfg_attr(feature = "cli", arg(long))]
+    pub org: Option<Address>,
+
     #[cfg_attr(feature = "cli", clap(long, value_name = "SHELL"))]
     #[cfg(feature = "cli")]
     pub completions: Option<Shell>,

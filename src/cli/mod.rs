@@ -20,6 +20,9 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     };
     ctx.set_start(cfg.start_read.unwrap_or(0));
     ctx.set_end(cfg.end_read);
+    if let Some(org) = cfg.org {
+        ctx.org = org;
+    }
     Ok(ctx)
 }
 
