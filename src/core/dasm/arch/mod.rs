@@ -625,11 +625,6 @@ pub struct Context {
     // from a patch file
     #[cfg_attr(feature = "serde", serde(default))]
     pub patches: Vec<Patch>,
-
-    // optional header lenght - can be used to
-    // skip the first n bytes of a file
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub header_len: usize,
 }
 
 impl Context {
@@ -645,7 +640,6 @@ impl Context {
             end_read: None,
             patches: Default::default(),
             allow_raw: false,
-            header_len: 0,
         }
     }
 
@@ -820,8 +814,8 @@ impl Archs {
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<()> {
-        let end_read = ctx.end_read.unwrap_or(data.len() - ctx.header_len) + ctx.header_len;
-        let start_read = ctx.start_read + ctx.header_len;
+        let end_read = ctx.end_read.unwrap_or(data.len()).min(data.len());
+        let start_read = ctx.start_read.min(data.len());
         let data = &data[start_read..end_read];
 
         let mut total = 0;
