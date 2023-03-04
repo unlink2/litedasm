@@ -683,8 +683,12 @@ impl Context {
         self.flags.get(flag)
     }
 
-    pub fn set_start(&mut self, addr: usize) {
-        self.start_read = addr.wrapping_sub(self.org as usize);
+    pub fn set_start(&mut self, addr: Option<usize>) {
+        if let Some(addr) = addr {
+            self.start_read = addr.wrapping_sub(self.org as usize);
+        } else {
+            self.start_read = 0;
+        }
     }
 
     pub fn set_end(&mut self, addr: Option<usize>) {

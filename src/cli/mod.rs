@@ -18,7 +18,7 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     } else {
         Context::default()
     };
-    ctx.set_start(cfg.start_read.unwrap_or(0));
+    ctx.set_start(cfg.start_read);
     ctx.set_end(cfg.end_read);
     if let Some(org) = cfg.org {
         ctx.org = org;
