@@ -106,6 +106,12 @@ buildcmd:
 	make clean 
 	bear -- make build
 
+.PHONY: buildcmd
+buildcmd_test:
+	make clean 
+	bear -- make build_test
+
+
 .PHONY: lint 
 lint: 
 	clang-tidy $(SRCS) $(INCS)
@@ -118,11 +124,6 @@ clean:
 .PHONY: setup
 setup:
 	make getmods
-
-# make all targets 
-.PHONY: all 
-all: 
-	make PRG=MPASM NAME=mpasm
 
 
 # installs the binary, shared library or static library  
