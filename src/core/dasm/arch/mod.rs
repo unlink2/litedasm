@@ -2,7 +2,11 @@ pub mod a6502;
 pub mod a65c02;
 pub mod a65c816;
 
-use std::{collections::BTreeMap, fmt::Display};
+use std::{
+    collections::BTreeMap,
+    fmt::Display,
+    sync::{Arc, Mutex},
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -382,7 +386,7 @@ impl Transform {
         Self::cb(
             f,
             &Node::new(" [".into()),
-            CallbackKind::Raw,
+            CallbackKind::Static,
             &[],
             arch,
             ctx,
@@ -405,7 +409,14 @@ impl Transform {
                 ctx,
             )?;
         }
-        Self::cb(f, &Node::new("]".into()), CallbackKind::Raw, &[], arch, ctx)?;
+        Self::cb(
+            f,
+            &Node::new("]".into()),
+            CallbackKind::Static,
+            &[],
+            arch,
+            ctx,
+        )?;
         Ok(())
     }
 
@@ -673,6 +684,16 @@ pub struct TransformContext {
     pub line_len: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone)]
+pub enum StaticOp {
+    String(String),
+    // TODO allow checking if flags are set
+    // to filter inserts
+    // if_flags(...)
+    // set_flag(...)
+}
+
 /// The context describes the runtime information of a single parser operation
 /// it contains the current address as well as a list of known symbols
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -702,6 +723,10 @@ pub struct Context {
     #[cfg_attr(feature = "serde", serde(default))]
     pub patches: Vec<Patch>,
 
+    // allows statically inserting values for certain address offsets
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub static_ops: Arc<Mutex<BTreeMap<Address, Vec<StaticOp>>>>,
+
     // ignored fields
     #[cfg_attr(feature = "serde", serde(skip))]
     pub analyze: bool,
@@ -723,6 +748,7 @@ impl Context {
             patches: Default::default(),
             allow_raw: false,
             tr_ctx: Default::default(),
+            static_ops: Default::default(),
         }
     }
 
@@ -835,6 +861,8 @@ impl Arch {
             if pattern.is_match(self, ctx, data) {
                 ctx.tr_ctx = Default::default();
 
+                self.apply_statics(f, data, ctx)?;
+
                 let mut res = self.match_additional_patterns(f, data, ctx, &self.pre_patterns)?;
                 res += pattern.transform(&mut *f, &data[res..], self, ctx)?;
                 res += self.match_additional_patterns(f, &data[..res], ctx, &self.post_patterns)?;
@@ -843,6 +871,31 @@ impl Arch {
             }
         }
         Err(Error::NoMatch)
+    }
+
+    fn apply_statics(
+        &self,
+        f: &mut dyn DisasCallback,
+        _data: &[u8],
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        let address = ctx.address();
+        let ops = ctx.static_ops.clone();
+        if let Some(st) = ops.lock().unwrap().get(&address) {
+            for op in st {
+                match op {
+                    StaticOp::String(string) => f(
+                        &Node::new(format!("{}\n", string)),
+                        CallbackKind::Static,
+                        &[],
+                        self,
+                        ctx,
+                    )?,
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn match_additional_patterns(
