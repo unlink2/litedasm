@@ -121,8 +121,6 @@ pub struct DefSym {
     #[cfg_attr(feature = "serde", serde(default))]
     symbol_kind: SymbolKind,
     #[cfg_attr(feature = "serde", serde(default))]
-    rel: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     len: usize,
 }
 
