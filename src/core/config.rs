@@ -222,6 +222,9 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long, short, value_parser = auto_radix_usize))]
     pub end_read: Option<usize>,
 
+    #[cfg_attr(feature = "cli", arg(long, short, value_parser = auto_radix_usize))]
+    pub read_len: Option<usize>,
+
     #[cfg_attr(feature = "cli", arg(long, value_parser = auto_radix_address))]
     pub org: Option<Address>,
 
