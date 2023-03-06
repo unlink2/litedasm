@@ -21,7 +21,6 @@ Checks: "*,
   -altera-id-dependent-backward-branch,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -misc-no-recursion
-  -clang-diagnostic-strict-prototypes
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''

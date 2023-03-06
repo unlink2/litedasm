@@ -3,7 +3,7 @@
 
 struct Config cfg;
 
-struct Config config_init() {
+struct Config config_init(void) {
   struct Config c;
   memset(&c, 0, sizeof(c));
 

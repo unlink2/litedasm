@@ -10,6 +10,6 @@ struct Config {
 
 extern struct Config cfg;
 
-struct Config config_init();
+struct Config config_init(void);
 
 #endif 
