@@ -159,7 +159,7 @@ mod test {
         let mut result = "".to_string();
         let ctx = arch
             .disas(
-                |n, _raw, _arch, _ctx| {
+                |n, _kind, _raw, _arch, _ctx| {
                     result.push_str(&n.string);
                     Ok(())
                 },
@@ -180,7 +180,7 @@ mod test {
     ) {
         let mut result = "".to_string();
         arch.disas_ctx(
-            |n, _raw, _arch, _ctx| {
+            |n, _kind, _raw, _arch, _ctx| {
                 result.push_str(&n.string);
                 Ok(())
             },

@@ -54,13 +54,27 @@ impl Display for Node {
     }
 }
 
+/// Meta-information about which type of
+/// operation caused the callback to be executed
+#[derive(Clone)]
+pub enum CallbackKind {
+    Val,
+    Raw,
+    Address,
+    Label,
+    Symbol,
+    MatcherName,
+    Static,
+}
+
 /// This callback is called for every matched pattern with the final
 /// transformed result. Each context may also pass along a user-data field <T>
 /// which can be used to make the callback work
-pub trait DisasCallback = FnMut(&Node, &[u8], &Arch, &mut Context) -> FdResult<()>;
+pub trait DisasCallback = FnMut(&Node, CallbackKind, &[u8], &Arch, &mut Context) -> FdResult<()>;
 
 pub fn default_callback(
     node: &Node,
+    _kind: CallbackKind,
     _raw: &[u8],
     _arch: &Arch,
     _ctx: &mut Context,
@@ -234,10 +248,11 @@ impl Transform {
             Transform::Val(ao) => self.output_value(f, data, arch, ctx, ao)?,
             Transform::Raw => self.output_raw(f, data, arch, ctx)?,
             Transform::Label => self.output_label(f, data, arch, ctx)?,
-            Transform::Static(s) => f(s, data, arch, ctx)?,
-            Transform::MatcherName => f(matcher_name, data, arch, ctx)?,
+            Transform::Static(s) => f(s, CallbackKind::Static, data, arch, ctx)?,
+            Transform::MatcherName => f(matcher_name, CallbackKind::MatcherName, data, arch, ctx)?,
             Transform::Address(width) => f(
                 &Node::new(format!("{:0width$x}", ctx.address())),
+                CallbackKind::Address,
                 data,
                 arch,
                 ctx,
@@ -320,7 +335,7 @@ impl Transform {
                 result.push_str(&format!("{}:\n", &label.name));
             }
         }
-        f(&Node::new(result), data, arch, ctx)
+        f(&Node::new(result), CallbackKind::Label, data, arch, ctx)
     }
 
     fn output_raw(
@@ -333,24 +348,25 @@ impl Transform {
         if !ctx.allow_raw || data.is_empty() {
             return Ok(());
         }
-        f(&Node::new(" [".into()), &[], arch, ctx)?;
+        f(&Node::new(" [".into()), CallbackKind::Raw, &[], arch, ctx)?;
 
         let space_node = Node::new(" ".into());
 
         let mut first = true;
         for byte in data {
             if !first {
-                f(&space_node, &[], arch, ctx)?;
+                f(&space_node, CallbackKind::Raw, &[], arch, ctx)?;
             }
             first = false;
             f(
                 &try_to_node(*byte as ValueType, ValueTypeFmt::LowerHex(2), arch)?,
+                CallbackKind::Raw,
                 &[*byte],
                 arch,
                 ctx,
             )?;
         }
-        f(&Node::new("]".into()), &[], arch, ctx)?;
+        f(&Node::new("]".into()), CallbackKind::Raw, &[], arch, ctx)?;
         Ok(())
     }
 
@@ -380,10 +396,16 @@ impl Transform {
                     // value and the symbol's value here
                     format!("{}+{}", sym.name, sym_val - sym.value)
                 };
-                f(&Node::new(sym_name), data, arch, ctx)?
+                f(&Node::new(sym_name), CallbackKind::Symbol, data, arch, ctx)?
             }
         } else if !ctx.analyze {
-            f(&try_to_node(value, ao.fmt, arch)?, data, arch, ctx)?
+            f(
+                &try_to_node(value, ao.fmt, arch)?,
+                CallbackKind::Val,
+                data,
+                arch,
+                ctx,
+            )?
         } else if ao.auto_def_sym {
             let name = format!("auto_{}", ctx.address());
             ctx.def_symbol(Symbol::new(

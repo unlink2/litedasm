@@ -2,7 +2,7 @@ use crate::{
     core::{
         config::generate_completion,
         dasm::{
-            arch::{Archs, Context},
+            arch::{Arch, Archs, CallbackKind, Context, Node},
             Address,
         },
         error::FdResult,
@@ -98,7 +98,42 @@ fn org(cfg: &Config, address: Address, _arch: &Archs, ctx: &mut Context) -> FdRe
     write_ctx(cfg, ctx)
 }
 
-fn disas(_cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -> FdResult<()> {
+fn print_callback<T>(
+    node: &Node,
+    kind: CallbackKind,
+    _raw: &[u8],
+    _arch: &Arch,
+    _ctx: &mut Context,
+    output: &mut T,
+    cfg: &Config,
+) -> FdResult<()>
+where
+    T: Write,
+{
+    if cfg.no_color {
+        write!(output, "{}", node.string)?;
+    } else {
+        use console::style;
+        let s = &node.string;
+
+        write!(
+            output,
+            "{}",
+            match kind {
+                CallbackKind::Val => style(s).cyan(),
+                CallbackKind::Raw => style(s).red(),
+                CallbackKind::Address => style(s).yellow(),
+                CallbackKind::Label => style(s).green(),
+                CallbackKind::Symbol => style(s).cyan(),
+                CallbackKind::MatcherName => style(s),
+                CallbackKind::Static => style(s),
+            }
+        )?;
+    }
+    Ok(())
+}
+
+fn disas(cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -> FdResult<()> {
     // set up io
     let mut input = disas.input()?;
     let mut output = disas.output()?;
@@ -111,17 +146,14 @@ fn disas(_cfg: &Config, disas: &DisasCommand, arch: &Archs, ctx: &mut Context) -
     // first pass - generate symbols
     if disas.pre_analyze {
         ctx.analyze = true;
-        arch.disas_ctx(|_node, _data, _arch, _ctx| Ok(()), &buffer, ctx)?;
+        arch.disas_ctx(|_node, _kind, _data, _arch, _ctx| Ok(()), &buffer, ctx)?;
         ctx.restart();
         ctx.analyze = false;
     }
 
     // second pass - the actual output
     arch.disas_ctx(
-        |node, _data, _arch, _ctx| {
-            write!(output, "{}", node.string)?;
-            Ok(())
-        },
+        |node, kind, data, arch, ctx| print_callback(node, kind, data, arch, ctx, &mut output, cfg),
         &buffer,
         ctx,
     )?;
