@@ -362,7 +362,11 @@ impl Transform {
                 result.push_str(&format!("{}:\n", &label.name));
             }
         }
-        Self::cb(f, &Node::new(result), CallbackKind::Label, data, arch, ctx)
+        // labels do not count towards the line lenght because they
+        // create a new line -> lenght should be 0 now!
+        let res = Self::cb(f, &Node::new(result), CallbackKind::Label, data, arch, ctx);
+        ctx.tr_ctx.line_len = 0;
+        res
     }
 
     fn output_raw(
