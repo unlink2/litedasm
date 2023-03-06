@@ -307,7 +307,7 @@ pub(super) fn transforms() -> TransformMap {
         "address".into(),
         vec![Transform::Label, Transform::Address(8), Transform::space(1)],
     );
-    map.insert("raw".into(), vec![Transform::Raw]);
+    map.insert("raw".into(), vec![Transform::Pad(25), Transform::Raw]);
     map.insert("new_line".into(), vec![Transform::new_line()]);
     transforms_default_modes(&mut map);
 

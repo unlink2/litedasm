@@ -103,13 +103,22 @@ fn print_callback<T>(
     kind: CallbackKind,
     _raw: &[u8],
     _arch: &Arch,
-    _ctx: &mut Context,
+    ctx: &mut Context,
     output: &mut T,
     cfg: &Config,
 ) -> FdResult<()>
 where
     T: Write,
 {
+    if let CallbackKind::Pad(n) = kind {
+        if n > ctx.tr_ctx.line_len {
+            // wirte pads
+            for _ in 0..n - ctx.tr_ctx.line_len {
+                write!(output, " ")?;
+            }
+        }
+    }
+
     if cfg.no_color {
         write!(output, "{}", node.string)?;
     } else {
@@ -127,6 +136,7 @@ where
                 CallbackKind::Symbol => style(s).cyan(),
                 CallbackKind::MatcherName => style(s),
                 CallbackKind::Static => style(s),
+                _ => style(s),
             }
         )?;
     }

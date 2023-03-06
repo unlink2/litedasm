@@ -65,6 +65,7 @@ pub enum CallbackKind {
     Symbol,
     MatcherName,
     Static,
+    Pad(usize),
 }
 
 /// This callback is called for every matched pattern with the final
@@ -192,6 +193,8 @@ pub enum Transform {
     SetFlag(String, String),
     UnsetFlag(String),
     ChangeArch(String),
+    // Pad to n chars
+    Pad(usize),
     #[default]
     Skip,
 }
@@ -235,6 +238,19 @@ impl Transform {
         Ok(self.data_len())
     }
 
+    // calls the callback function f
+    fn cb(
+        f: &mut dyn DisasCallback,
+        node: &Node,
+        kind: CallbackKind,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        ctx.tr_ctx.line_len += node.string.len();
+        f(node, kind, data, arch, ctx)
+    }
+
     fn no_analyze(
         &self,
         f: &mut dyn DisasCallback,
@@ -248,11 +264,22 @@ impl Transform {
             Transform::Val(ao) => self.output_value(f, data, arch, ctx, ao)?,
             Transform::Raw => self.output_raw(f, data, arch, ctx)?,
             Transform::Label => self.output_label(f, data, arch, ctx)?,
-            Transform::Static(s) => f(s, CallbackKind::Static, data, arch, ctx)?,
-            Transform::MatcherName => f(matcher_name, CallbackKind::MatcherName, data, arch, ctx)?,
-            Transform::Address(width) => f(
+            Transform::Static(s) => Self::cb(f, s, CallbackKind::Static, data, arch, ctx)?,
+            Transform::MatcherName => {
+                Self::cb(f, matcher_name, CallbackKind::MatcherName, data, arch, ctx)?
+            }
+            Transform::Address(width) => Self::cb(
+                f,
                 &Node::new(format!("{:0width$x}", ctx.address())),
                 CallbackKind::Address,
+                data,
+                arch,
+                ctx,
+            )?,
+            Transform::Pad(chars) => Self::cb(
+                f,
+                &Node::new("".into()),
+                CallbackKind::Pad(*chars),
                 data,
                 arch,
                 ctx,
@@ -335,7 +362,7 @@ impl Transform {
                 result.push_str(&format!("{}:\n", &label.name));
             }
         }
-        f(&Node::new(result), CallbackKind::Label, data, arch, ctx)
+        Self::cb(f, &Node::new(result), CallbackKind::Label, data, arch, ctx)
     }
 
     fn output_raw(
@@ -348,17 +375,25 @@ impl Transform {
         if !ctx.allow_raw || data.is_empty() {
             return Ok(());
         }
-        f(&Node::new(" [".into()), CallbackKind::Raw, &[], arch, ctx)?;
+        Self::cb(
+            f,
+            &Node::new(" [".into()),
+            CallbackKind::Raw,
+            &[],
+            arch,
+            ctx,
+        )?;
 
         let space_node = Node::new(" ".into());
 
         let mut first = true;
         for byte in data {
             if !first {
-                f(&space_node, CallbackKind::Raw, &[], arch, ctx)?;
+                Self::cb(f, &space_node, CallbackKind::Raw, &[], arch, ctx)?;
             }
             first = false;
-            f(
+            Self::cb(
+                f,
                 &try_to_node(*byte as ValueType, ValueTypeFmt::LowerHex(2), arch)?,
                 CallbackKind::Raw,
                 &[*byte],
@@ -366,7 +401,7 @@ impl Transform {
                 ctx,
             )?;
         }
-        f(&Node::new("]".into()), CallbackKind::Raw, &[], arch, ctx)?;
+        Self::cb(f, &Node::new("]".into()), CallbackKind::Raw, &[], arch, ctx)?;
         Ok(())
     }
 
@@ -396,10 +431,18 @@ impl Transform {
                     // value and the symbol's value here
                     format!("{}+{}", sym.name, sym_val - sym.value)
                 };
-                f(&Node::new(sym_name), CallbackKind::Symbol, data, arch, ctx)?
+                Self::cb(
+                    f,
+                    &Node::new(sym_name),
+                    CallbackKind::Symbol,
+                    data,
+                    arch,
+                    ctx,
+                )?
             }
         } else if !ctx.analyze {
-            f(
+            Self::cb(
+                f,
                 &try_to_node(value, ao.fmt, arch)?,
                 CallbackKind::Val,
                 data,
@@ -615,6 +658,17 @@ impl Endianess {
     }
 }
 
+// context for the current transform that is being applied.
+// This will be overwritten every time a new transform starts
+#[derive(Default, Clone)]
+pub struct TransformContext {
+    // can be used to determine how long each line currently is
+    // used for padding and layout
+    // this simply counts the total lenght of all nodes passed to the
+    // callback
+    pub line_len: usize,
+}
+
 /// The context describes the runtime information of a single parser operation
 /// it contains the current address as well as a list of known symbols
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -637,14 +691,18 @@ pub struct Context {
     #[cfg_attr(feature = "serde", serde(default))]
     pub syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub analyze: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub allow_raw: bool,
 
     // a file can optionally be patched from data and
     // from a patch file
     #[cfg_attr(feature = "serde", serde(default))]
     pub patches: Vec<Patch>,
+
+    // ignored fields
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub analyze: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub tr_ctx: TransformContext,
 }
 
 impl Context {
@@ -660,6 +718,7 @@ impl Context {
             end_read: None,
             patches: Default::default(),
             allow_raw: false,
+            tr_ctx: Default::default(),
         }
     }
 
@@ -770,6 +829,8 @@ impl Arch {
     ) -> FdResult<usize> {
         for pattern in self.patterns.iter() {
             if pattern.is_match(self, ctx, data) {
+                ctx.tr_ctx = Default::default();
+
                 let mut res = self.match_additional_patterns(f, data, ctx, &self.pre_patterns)?;
                 res += pattern.transform(&mut *f, &data[res..], self, ctx)?;
                 res += self.match_additional_patterns(f, &data[..res], ctx, &self.post_patterns)?;
