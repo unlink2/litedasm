@@ -25,7 +25,7 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     ctx.set_start(cfg.start_read);
     ctx.set_end(cfg.end_read);
     if let Some(len) = cfg.read_len {
-        ctx.set_end(Some(len + ctx.start_read + ctx.org as usize));
+        ctx.set_len(len);
     }
 
     Ok(ctx)

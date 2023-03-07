@@ -787,19 +787,15 @@ impl Context {
     }
 
     pub fn set_start(&mut self, addr: Option<usize>) {
-        if let Some(addr) = addr {
-            self.start_read = addr.wrapping_sub(self.org as usize);
-        } else {
-            self.start_read = 0;
-        }
+        self.start_read = addr.unwrap_or(0);
     }
 
     pub fn set_end(&mut self, addr: Option<usize>) {
-        if let Some(addr) = addr {
-            self.end_read = Some(addr.wrapping_sub(self.org as usize));
-        } else {
-            self.end_read = addr;
-        }
+        self.end_read = addr;
+    }
+
+    pub fn set_len(&mut self, len: usize) {
+        self.end_read = Some(self.start_read + len);
     }
 }
 
