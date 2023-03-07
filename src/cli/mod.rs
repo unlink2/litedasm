@@ -11,31 +11,34 @@ use crate::{
 };
 use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
-use std::io::prelude::*;
+use std::{io::prelude::*, path::PathBuf};
 
 const CTX_DEFAULT_FILE: &str = "./ctx.ron";
 const CTX_DEFAULT_FILE_VAR: &str = "LITEDASM_CTX_PATH";
 
-fn get_default_ctx_file() -> String {
-    match std::env::var(CTX_DEFAULT_FILE_VAR) {
-        Ok(val) => val,
+fn get_ctx_file(cfg: &Config) -> Option<PathBuf> {
+    if let Some(path) = &cfg.ctx_file {
+        return Some(path.to_owned());
+    }
+    let path: PathBuf = match std::env::var(CTX_DEFAULT_FILE_VAR) {
+        Ok(val) => val.into(),
         Err(_) => CTX_DEFAULT_FILE.into(),
+    };
+
+    if !path.exists() {
+        None
+    } else {
+        Some(path)
     }
 }
 
 pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
-    let default_ctx_path = get_default_ctx_file();
-
-    let mut ctx = if let Some(path) = &cfg.ctx_file {
+    let mut ctx = if let Some(path) = get_ctx_file(cfg) {
         info!(
             "Reading from context path '{}'",
             path.to_str().unwrap_or("")
         );
         let data = std::fs::read_to_string(path)?;
-        ron::from_str(&data).expect("Unable to read context file")
-    } else if std::path::Path::new(&default_ctx_path).exists() {
-        info!("Reading from default context path '{}'", default_ctx_path);
-        let data = std::fs::read_to_string(default_ctx_path)?;
         ron::from_str(&data).expect("Unable to read context file")
     } else {
         info!("Using default context");
@@ -73,15 +76,10 @@ fn verbose_to_level_filter(v: u8) -> LevelFilter {
 pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
     let data =
         ron::ser::to_string_pretty(ctx, Default::default()).expect("Unable to convert context");
-    let default_ctx_path = get_default_ctx_file();
 
-    if let Some(path) = &cfg.ctx_file {
+    if let Some(path) = get_ctx_file(cfg) {
         info!("Writing context to '{}'", path.to_str().unwrap_or(""));
         let mut f = std::fs::File::create(path)?;
-        f.write_all(&data.into_bytes())?;
-    } else if std::path::Path::new(&default_ctx_path).exists() {
-        info!("Writing context to default path '{}'", default_ctx_path);
-        let mut f = std::fs::File::create(default_ctx_path)?;
         f.write_all(&data.into_bytes())?;
     } else {
         println!("{data}");
