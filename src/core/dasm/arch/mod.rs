@@ -771,7 +771,9 @@ pub struct Context {
 
     // allows statically inserting values for certain address offsets
     #[cfg_attr(feature = "serde", serde(default))]
-    pub static_ops: Arc<Mutex<Vec<StaticOp>>>,
+    pub static_ops_pre: Arc<Mutex<Vec<StaticOp>>>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub static_ops_post: Arc<Mutex<Vec<StaticOp>>>,
 
     // ignored fields
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -794,7 +796,8 @@ impl Context {
             patches: Default::default(),
             allow_raw: false,
             tr_ctx: Default::default(),
-            static_ops: Default::default(),
+            static_ops_pre: Default::default(),
+            static_ops_post: Default::default(),
         }
     }
 
@@ -907,11 +910,13 @@ impl Arch {
             if pattern.is_match(self, ctx, data) {
                 ctx.tr_ctx = Default::default();
 
-                self.apply_statics(f, data, ctx)?;
+                self.apply_statics_pre(f, data, ctx)?;
 
                 let mut res = self.match_additional_patterns(f, data, ctx, &self.pre_patterns)?;
                 res += pattern.transform(&mut *f, &data[res..], self, ctx)?;
                 res += self.match_additional_patterns(f, &data[..res], ctx, &self.post_patterns)?;
+
+                self.apply_statics_post(f, data, ctx)?;
 
                 return Ok(res);
             }
@@ -919,13 +924,27 @@ impl Arch {
         Err(Error::NoMatch)
     }
 
-    fn apply_statics(
+    fn apply_statics_pre(
         &self,
         f: &mut dyn DisasCallback,
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<()> {
-        let st = ctx.static_ops.clone();
+        let st = ctx.static_ops_pre.clone();
+        for op in st.lock().unwrap().iter() {
+            op.apply(f, data, self, ctx)?;
+        }
+
+        Ok(())
+    }
+
+    fn apply_statics_post(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        let st = ctx.static_ops_post.clone();
         for op in st.lock().unwrap().iter() {
             op.apply(f, data, self, ctx)?;
         }
