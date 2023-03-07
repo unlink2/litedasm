@@ -698,7 +698,7 @@ pub struct TransformContext {
 #[derive(Clone)]
 pub enum StaticOp {
     Address(Address, Vec<StaticOp>),
-    String(String),
+    StringLn(String),
     SetFlag(String, String),
     UnsetFlag(String),
     // Apply an operation if the data matches the input
@@ -721,7 +721,7 @@ impl StaticOp {
                     ops.iter().try_for_each(|x| x.apply(f, data, arch, ctx))?;
                 }
             }
-            StaticOp::String(string) => f(
+            StaticOp::StringLn(string) => f(
                 &Node::new(format!("{}\n", string)),
                 CallbackKind::Static,
                 &[],
@@ -837,6 +837,17 @@ impl Context {
 
     pub fn set_start(&mut self, addr: Option<usize>) {
         self.start_read = addr.unwrap_or(0);
+    }
+
+    pub fn set_start_to_symbol(&mut self, label: &str) -> FdResult<()> {
+        let s = self
+            .syms
+            .get_first_by_name(label)
+            .ok_or(Error::LabelNotFound(label.to_owned()))?;
+
+        self.start_read = s.value as usize - self.org as usize;
+
+        Ok(())
     }
 
     pub fn set_org(&mut self, org: Address) {

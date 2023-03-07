@@ -113,6 +113,10 @@ impl SymbolList {
             .collect()
     }
 
+    pub fn get_first_by_name(&self, name: &str) -> Option<&Symbol> {
+        self.map.iter().find(|x| x.name == name)
+    }
+
     pub fn get_first_symbol(&self, value: ValueType, address: Address) -> Option<&Symbol> {
         self.map.iter().find(|x| x.is_match(value, Some(address)))
     }

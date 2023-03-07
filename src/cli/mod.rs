@@ -25,7 +25,11 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
         ctx.org = org;
     }
     ctx.set_start(cfg.start_read);
+    if let Some(label) = &cfg.start_at_label {
+        ctx.set_start_to_symbol(label)?;
+    }
     ctx.set_org(ctx.org + ctx.start_read as Address);
+
     ctx.set_end(cfg.end_read);
     if let Some(len) = cfg.read_len {
         ctx.set_len(len);

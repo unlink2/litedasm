@@ -21,6 +21,8 @@ pub enum Error {
     ArchNotFound(String),
     #[error("Unable to patch file")]
     PatchOffsetOutOfRange(usize),
+    #[error("Label not found")]
+    LabelNotFound(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]
