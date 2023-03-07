@@ -23,6 +23,7 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
         ctx.org = org;
     }
     ctx.set_start(cfg.start_read);
+    ctx.set_org(ctx.org + ctx.start_read as Address);
     ctx.set_end(cfg.end_read);
     if let Some(len) = cfg.read_len {
         ctx.set_len(len);

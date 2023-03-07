@@ -790,6 +790,10 @@ impl Context {
         self.start_read = addr.unwrap_or(0);
     }
 
+    pub fn set_org(&mut self, org: Address) {
+        self.org = org;
+    }
+
     pub fn set_end(&mut self, addr: Option<usize>) {
         self.end_read = addr;
     }
