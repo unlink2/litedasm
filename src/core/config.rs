@@ -86,6 +86,7 @@ impl Into<Symbol> for DefSym {
                 )
             },
             value: self.value,
+            additional_values: Default::default(),
             len: self.len.unwrap_or(1),
         }
     }
