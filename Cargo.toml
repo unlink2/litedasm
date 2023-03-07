@@ -12,8 +12,9 @@ repository = "https://github.com/unlink2/litedasm"
 [features]
 default = ["tui"]
 serde = ["dep:serde", "dep:ron"]
-cli = ["dep:clap", "dep:clap_complete", "serde", "dep:console"]
+cli = ["dep:clap", "dep:clap_complete", "serde", "dep:console", "log"]
 tui = ["cli"]
+log = ["dep:simple_logger"]
 
 [dependencies]
 anyhow = "1.0.68"
@@ -24,3 +25,5 @@ serde = { version = "1.0.152", features = ["derive", "rc"], optional = true }
 ron = { version = "0.8.0", optional = true }
 thiserror = "1.0.38"
 console = { version = "0.15.5", optional = true }
+log = "0.4.17"
+simple_logger = { optional = true, version = "4.0.0" }

@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use log::info;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -989,6 +990,10 @@ impl Archs {
         let end_read = ctx.end_read.unwrap_or(data.len()).min(data.len());
         let start_read = ctx.start_read.min(data.len());
         let data = &data[start_read..end_read];
+        info!(
+            "Starting from {start_read} to {end_read} at org {}",
+            ctx.org
+        );
 
         let mut total = 0;
         // loop until total data processed is out of range
@@ -1000,6 +1005,8 @@ impl Archs {
                 .ok_or_else(|| Error::ArchNotFound(ctx.arch_key.clone()))?;
             total += arch.match_patterns(&mut f, &data[total..], ctx)?;
         }
+
+        info!("Finished. Read {total} bytes.");
         Ok(())
     }
 }

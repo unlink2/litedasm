@@ -9,6 +9,8 @@ use crate::{
     },
     prelude::{Config, DefSym, DisasCommand},
 };
+use log::LevelFilter;
+use simple_logger::SimpleLogger;
 use std::io::prelude::*;
 
 pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
@@ -32,6 +34,17 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     Ok(ctx)
 }
 
+fn verbose_to_level_filter(v: u8) -> LevelFilter {
+    match v {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Error,
+        2 => LevelFilter::Warn,
+        3 => LevelFilter::Info,
+        4 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
+    }
+}
+
 pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
     let data =
         ron::ser::to_string_pretty(ctx, Default::default()).expect("Unable to convert context");
@@ -46,6 +59,11 @@ pub fn write_ctx(cfg: &Config, ctx: &Context) -> FdResult<()> {
 }
 
 pub fn init(cfg: &Config) -> FdResult<()> {
+    SimpleLogger::new()
+        .with_level(verbose_to_level_filter(cfg.verbose))
+        .init()
+        .expect("Failed initializing logger");
+
     if let Some(shell) = cfg.completions {
         generate_completion(shell);
         std::process::exit(0);
