@@ -571,7 +571,16 @@ pub struct Matcher {
 impl Matcher {
     /// check if this matcher matches the pattern specified
     pub fn is_match(&self, arch: &Arch, ctx: &mut Context, data: &[u8]) -> bool {
-        for pa in self.patterns.iter() {
+        Self::is_match_with(arch, ctx, data, &self.patterns)
+    }
+
+    pub fn is_match_with(
+        arch: &Arch,
+        ctx: &mut Context,
+        data: &[u8],
+        patterns: &[PatternAt],
+    ) -> bool {
+        for pa in patterns.iter() {
             if pa.pattern.always() {
                 return true;
             }
@@ -687,11 +696,47 @@ pub struct TransformContext {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone)]
 pub enum StaticOp {
+    Address(Address, Vec<StaticOp>),
     String(String),
-    // TODO allow checking if flags are set
-    // to filter inserts
-    // if_flags(...)
-    // set_flag(...)
+    SetFlag(String, String),
+    UnsetFlag(String),
+    // Apply an operation if the data matches the input
+    Match(Vec<PatternAt>, Vec<StaticOp>), // TODO allow checking if flags are set
+                                          // to filter inserts
+                                          // if_flags(...)
+}
+
+impl StaticOp {
+    pub fn apply(
+        &self,
+        f: &mut dyn DisasCallback,
+        data: &[u8],
+        arch: &Arch,
+        ctx: &mut Context,
+    ) -> FdResult<()> {
+        match self {
+            StaticOp::Address(address, ops) => {
+                if ctx.address() == *address {
+                    ops.iter().try_for_each(|x| x.apply(f, data, arch, ctx))?;
+                }
+            }
+            StaticOp::String(string) => f(
+                &Node::new(format!("{}\n", string)),
+                CallbackKind::Static,
+                &[],
+                arch,
+                ctx,
+            )?,
+            StaticOp::SetFlag(flag, value) => ctx.def_flag(&flag, &value),
+            StaticOp::UnsetFlag(flag) => ctx.undef_flag(&flag),
+            StaticOp::Match(patterns, ops) => {
+                if Matcher::is_match_with(arch, ctx, data, &patterns) {
+                    ops.iter().try_for_each(|x| x.apply(f, data, arch, ctx))?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// The context describes the runtime information of a single parser operation
@@ -725,7 +770,7 @@ pub struct Context {
 
     // allows statically inserting values for certain address offsets
     #[cfg_attr(feature = "serde", serde(default))]
-    pub static_ops: Arc<Mutex<BTreeMap<Address, Vec<StaticOp>>>>,
+    pub static_ops: Arc<Mutex<Vec<StaticOp>>>,
 
     // ignored fields
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -876,23 +921,12 @@ impl Arch {
     fn apply_statics(
         &self,
         f: &mut dyn DisasCallback,
-        _data: &[u8],
+        data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<()> {
-        let address = ctx.address();
-        let ops = ctx.static_ops.clone();
-        if let Some(st) = ops.lock().unwrap().get(&address) {
-            for op in st {
-                match op {
-                    StaticOp::String(string) => f(
-                        &Node::new(format!("{}\n", string)),
-                        CallbackKind::Static,
-                        &[],
-                        self,
-                        ctx,
-                    )?,
-                }
-            }
+        let st = ctx.static_ops.clone();
+        for op in st.lock().unwrap().iter() {
+            op.apply(f, data, self, ctx)?;
         }
 
         Ok(())
