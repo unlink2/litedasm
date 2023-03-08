@@ -104,6 +104,9 @@ pub enum Commands {
     Patch(DisasCommand),
     DumpArch,
     DumpCtx,
+    Interactive {
+        input: PathBuf,
+    },
 }
 
 impl Default for Commands {
@@ -200,7 +203,7 @@ fn auto_radix_usize(s: &str) -> Result<usize, ParseIntError> {
 #[cfg_attr(feature = "cli", command(author, version, about, long_about = None))]
 pub struct Config {
     #[cfg_attr(feature = "cli", command(subcommand))]
-    pub command: Commands,
+    pub command: Option<Commands>,
 
     // built in arch that may be loaded
     #[cfg_attr(feature = "cli", clap(long, short))]

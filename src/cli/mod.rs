@@ -1,3 +1,5 @@
+pub mod interactive;
+
 use crate::{
     core::{
         config::generate_completion,
@@ -102,13 +104,23 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     let arch = cfg.arch.to_arch(cfg)?;
     let mut ctx = read_ctx(cfg)?;
 
-    match &cfg.command {
-        crate::prelude::Commands::Org { address } => org(cfg, *address, &arch, &mut ctx),
-        crate::prelude::Commands::Disas(d) => disas(cfg, d, &arch, &mut ctx),
-        crate::prelude::Commands::DumpArch => dump_arch(cfg, &arch),
-        crate::prelude::Commands::DumpCtx => dump_ctx(cfg, &ctx),
-        crate::prelude::Commands::DefSym(ds) => defsym(cfg, ds, &arch, &mut ctx),
-        crate::prelude::Commands::Patch(d) => patch(cfg, d, &mut ctx),
+    if let Some(command) = &cfg.command {
+        match command {
+            crate::prelude::Commands::Org { address } => org(cfg, *address, &arch, &mut ctx),
+            crate::prelude::Commands::Disas(d) => disas(cfg, d, &arch, &mut ctx),
+            crate::prelude::Commands::DumpArch => dump_arch(cfg, &arch),
+            crate::prelude::Commands::DumpCtx => dump_ctx(cfg, &ctx),
+            crate::prelude::Commands::DefSym(ds) => defsym(cfg, ds, &arch, &mut ctx),
+            crate::prelude::Commands::Patch(d) => patch(cfg, d, &mut ctx),
+            crate::prelude::Commands::Interactive { input } => {
+                let mut f = std::fs::File::open(input)?;
+                let mut buffer = Vec::new();
+                f.read_to_end(&mut buffer)?;
+                interactive::command_line(cfg, arch, ctx, Some(buffer))
+            }
+        }
+    } else {
+        interactive::command_line(cfg, arch, ctx, None)
     }
 }
 

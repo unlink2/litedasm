@@ -23,6 +23,8 @@ pub enum Error {
     PatchOffsetOutOfRange(usize),
     #[error("Label not found")]
     LabelNotFound(String),
+    #[error("Unknown command")]
+    UnknownCommand(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]
