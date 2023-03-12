@@ -2,6 +2,7 @@ use crate::{
     core::dasm::arch::{Archs, Context},
     prelude::{Config, FdResult},
 };
+use rustyline::error::ReadlineError;
 
 enum Commands {
     Exit,
@@ -44,6 +45,7 @@ pub fn command_line(
                     Err(err) => eprintln!("{:?}", err),
                 }
             }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => return Ok(()),
             Err(err) => eprintln!("{:?}", err),
         }
     }
