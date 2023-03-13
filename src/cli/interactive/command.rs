@@ -52,6 +52,7 @@ pub fn default_actions() -> ActionList {
 /// followed by a list of parameters
 /// the full command could look like this:
 /// abc 123 456
+#[derive(Default)]
 pub struct ActionList {
     actions: Vec<Action>,
 }
@@ -193,13 +194,18 @@ impl Commands {
             }
             Commands::SetStartLabel(label) => {
                 ctx.set_start_to_symbol(label)?;
-
                 info!("New ctx start address: {:x}", ctx.start_read);
+                if let Some(last_len) = interactive.last_len {
+                    ctx.set_len(last_len);
+                    info!("New ctx end address: {:?}", ctx.end_read);
+                }
+
                 Ok(())
             }
             Commands::SetReadLen(len) => {
                 ctx.set_len(*len);
                 info!("New ctx end address: {:?}", ctx.end_read);
+                interactive.last_len = Some(*len);
                 Ok(())
             }
         }
@@ -207,9 +213,12 @@ impl Commands {
     }
 }
 
+#[derive(Default)]
 pub struct Interactive {
     pub actions: ActionList,
     pub data: Vec<u8>,
+
+    pub last_len: Option<usize>,
 }
 
 impl Interactive {

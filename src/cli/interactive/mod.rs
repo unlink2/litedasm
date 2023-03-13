@@ -22,7 +22,11 @@ pub fn default_interactive_callback(s: &str, _kind: CallbackKind) -> FdResult<()
 pub fn command_line(cfg: &Config, arch: Archs, mut ctx: Context, data: Vec<u8>) -> FdResult<()> {
     let mut rl = rustyline::DefaultEditor::new().expect("Unable to init interactive mode");
     let actions = default_actions();
-    let mut interactive = Interactive { actions, data };
+    let mut interactive = Interactive {
+        actions,
+        data,
+        ..Default::default()
+    };
     loop {
         let readline = rl.readline(">> ");
         match readline {

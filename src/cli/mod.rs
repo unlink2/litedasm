@@ -113,6 +113,7 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     let mut interactive = Interactive {
         actions: default_actions(),
         data: Default::default(),
+        ..Default::default()
     };
     for run in &cfg.run {
         interactive.execute(default_interactive_callback, run, &arch, &mut ctx, cfg)?;
