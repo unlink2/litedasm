@@ -25,6 +25,10 @@ pub enum Error {
     LabelNotFound(String),
     #[error("Unknown command")]
     UnknownCommand(String),
+    #[error("Not enough arguments provided")]
+    InsufficientArguments,
+    #[error("Too many arguments")]
+    TooManyArguments,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

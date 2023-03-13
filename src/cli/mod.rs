@@ -15,6 +15,8 @@ use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{io::prelude::*, path::PathBuf};
 
+use self::interactive::command::default_actions;
+
 const CTX_DEFAULT_FILE: &str = "./ctx.ron";
 const CTX_DEFAULT_FILE_VAR: &str = "LITEDASM_CTX_PATH";
 
@@ -103,6 +105,17 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     // first get the arch
     let arch = cfg.arch.to_arch(cfg)?;
     let mut ctx = read_ctx(cfg)?;
+
+    // run commands using the parser
+    {
+        let actions = default_actions();
+        let mut stdout = std::io::stdout();
+        for run in &cfg.run {
+            actions
+                .eval(&run)?
+                .execute(&mut stdout, &arch, &mut ctx, None, &actions)?;
+        }
+    }
 
     if let Some(command) = &cfg.command {
         match command {

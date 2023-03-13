@@ -238,6 +238,9 @@ pub struct Config {
     #[cfg_attr(feature = "cli", arg(long))]
     pub no_color: bool,
 
+    #[cfg_attr(feature = "cli", arg(long))]
+    pub run: Vec<String>,
+
     #[cfg_attr(feature = "cli", clap(long, value_name = "SHELL"))]
     #[cfg(feature = "cli")]
     pub completions: Option<Shell>,

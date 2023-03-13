@@ -1,32 +1,12 @@
+pub mod command;
+
 use crate::{
     core::dasm::arch::{Archs, Context},
     prelude::{Config, FdResult},
 };
 use rustyline::error::ReadlineError;
 
-enum Commands {
-    Exit,
-}
-
-impl Commands {
-    pub fn execute(&self, _arch: &Archs, _ctx: &mut Context, _data: Option<&[u8]>) -> FdResult<()> {
-        match self {
-            Commands::Exit => std::process::exit(0),
-        }
-        // Ok(())
-    }
-}
-
-impl TryFrom<String> for Commands {
-    type Error = crate::prelude::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "exit" => Ok(Self::Exit),
-            _ => Err(crate::prelude::Error::UnknownCommand(value)),
-        }
-    }
-}
+use self::command::default_actions;
 
 pub fn command_line(
     _cfg: &Config,
@@ -35,13 +15,22 @@ pub fn command_line(
     data: Option<Vec<u8>>,
 ) -> FdResult<()> {
     let mut rl = rustyline::DefaultEditor::new().expect("Unable to init interactive mode");
+    let mut stdout = std::io::stdout();
+    let actions = default_actions();
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                let cmd = Commands::try_from(line);
+                rl.add_history_entry(line.as_str()).expect("History error");
+                let cmd = actions.eval(&line);
                 match cmd {
-                    Ok(cmd) => cmd.execute(&arch, &mut ctx, data.as_deref())?,
+                    Ok(cmd) => {
+                        if let Err(err) =
+                            cmd.execute(&mut stdout, &arch, &mut ctx, data.as_deref(), &actions)
+                        {
+                            eprintln!("{:?}", err);
+                        }
+                    }
                     Err(err) => eprintln!("{:?}", err),
                 }
             }
