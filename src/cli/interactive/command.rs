@@ -3,6 +3,8 @@ use crate::{
     prelude::{Error, FdResult},
 };
 
+use super::{CallbackKind, InteractiveCallback};
+
 pub fn default_actions() -> ActionList {
     ActionList {
         actions: vec![
@@ -41,7 +43,7 @@ impl ActionList {
         action.eval(&args)
     }
 
-    fn help(&self, f: &mut dyn std::io::Write, cmd: &str) -> FdResult<()> {
+    fn help(&self, f: &mut dyn InteractiveCallback, cmd: &str) -> FdResult<()> {
         let mut printed = false;
         for action in &self.actions {
             if action.name.starts_with(cmd) {
@@ -102,16 +104,19 @@ impl Action {
         (self.parser)(args, &self.params)
     }
 
-    fn help(&self, f: &mut dyn std::io::Write) -> FdResult<()> {
-        write!(f, "{}", self.name)?;
+    fn help(&self, f: &mut dyn InteractiveCallback) -> FdResult<()> {
+        f(&self.name, super::CallbackKind::None)?;
         self.params.iter().try_for_each(|x| {
             if let Some(default_value) = &x.default_value {
-                write!(f, " [{}='{}']", x.name, default_value)
+                f(
+                    &format!(" [{}='{}']", x.name, default_value),
+                    CallbackKind::None,
+                )
             } else {
-                write!(f, " [{}]", x.name)
+                f(&format!(" [{}]", x.name), CallbackKind::None)
             }
         })?;
-        writeln!(f, " {}", self.help)?;
+        f(&format!(" {}\n", self.help), CallbackKind::None)?;
         Ok(())
     }
 }
@@ -124,7 +129,7 @@ pub enum Commands {
 impl Commands {
     pub fn execute(
         &self,
-        f: &mut dyn std::io::Write,
+        mut f: impl InteractiveCallback,
         _arch: &Archs,
         _ctx: &mut Context,
         _data: Option<&[u8]>,
@@ -132,7 +137,7 @@ impl Commands {
     ) -> FdResult<()> {
         match self {
             Commands::Exit => std::process::exit(0),
-            Commands::Help(cmd) => actions.help(f, &cmd),
+            Commands::Help(cmd) => actions.help(&mut f, &cmd),
         }
         // Ok(())
     }

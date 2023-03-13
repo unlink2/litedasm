@@ -1,12 +1,23 @@
 pub mod command;
 
 use crate::{
-    core::dasm::arch::{Archs, Context},
+    core::dasm::arch::{Arch, Archs, Context},
     prelude::{Config, FdResult},
 };
 use rustyline::error::ReadlineError;
 
-use self::command::default_actions;
+use self::command::{default_actions, ActionList};
+
+pub enum CallbackKind {
+    None,
+}
+
+pub trait InteractiveCallback = FnMut(&str, CallbackKind) -> FdResult<()>;
+
+pub fn default_interactive_callback(s: &str, _kind: CallbackKind) -> FdResult<()> {
+    print!("{}", s);
+    Ok(())
+}
 
 pub fn command_line(
     _cfg: &Config,
@@ -15,7 +26,6 @@ pub fn command_line(
     data: Option<Vec<u8>>,
 ) -> FdResult<()> {
     let mut rl = rustyline::DefaultEditor::new().expect("Unable to init interactive mode");
-    let mut stdout = std::io::stdout();
     let actions = default_actions();
     loop {
         let readline = rl.readline(">> ");
@@ -25,9 +35,13 @@ pub fn command_line(
                 let cmd = actions.eval(&line);
                 match cmd {
                     Ok(cmd) => {
-                        if let Err(err) =
-                            cmd.execute(&mut stdout, &arch, &mut ctx, data.as_deref(), &actions)
-                        {
+                        if let Err(err) = cmd.execute(
+                            default_interactive_callback,
+                            &arch,
+                            &mut ctx,
+                            data.as_deref(),
+                            &actions,
+                        ) {
                             eprintln!("{:?}", err);
                         }
                     }
