@@ -7,8 +7,11 @@ use log::info;
 
 use crate::{
     cli::print_callback,
-    core::dasm::arch::{Archs, Context},
-    prelude::{auto_radix_usize, Config, Error, FdResult},
+    core::dasm::{
+        arch::{Archs, Context},
+        Address,
+    },
+    prelude::{auto_radix_address, auto_radix_usize, Config, Error, FdResult},
 };
 
 use super::{CallbackKind, InteractiveCallback};
@@ -30,16 +33,22 @@ pub fn default_actions() -> ActionList {
             "Read a file",
         ),
         Action::new(
-            "dsl",
+            "dcl",
             vec![Param::new("label")],
             dump_start_label_parser,
             "Set dump starting point to a label",
         ),
         Action::new(
-            "drl",
+            "dcr",
             vec![Param::new("len")],
             dump_read_len_parser,
             "Set dump read lenght",
+        ),
+        Action::new(
+            "dca",
+            vec![Param::new("address")],
+            dump_start_address_parser,
+            "Set dump starting point to an address",
         ),
     ];
 
@@ -155,6 +164,7 @@ pub enum Commands {
     Help(String),
     DumpCode,
     SetStartLabel(String),
+    SetStartAddress(Address),
     SetReadLen(usize),
     ReadFile(PathBuf),
 }
@@ -206,6 +216,15 @@ impl Commands {
                 ctx.set_len(*len);
                 info!("New ctx end address: {:?}", ctx.end_read);
                 interactive.last_len = Some(*len);
+                Ok(())
+            }
+            Commands::SetStartAddress(address) => {
+                ctx.set_start(Some(*address as usize));
+                info!("New ctx start address: {:x}", ctx.start_read);
+                if let Some(last_len) = interactive.last_len {
+                    ctx.set_len(last_len);
+                    info!("New ctx end address: {:?}", ctx.end_read);
+                }
                 Ok(())
             }
         }
@@ -306,4 +325,10 @@ fn read_file_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     let path: PathBuf = get_arg_or_into(args, params, 0)?;
 
     Ok(Commands::ReadFile(path))
+}
+fn dump_start_address_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let address = auto_radix_address(&get_arg_or(args, params, 0)?)?;
+
+    Ok(Commands::SetStartAddress(address))
 }
