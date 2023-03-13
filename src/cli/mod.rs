@@ -15,7 +15,10 @@ use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{io::prelude::*, path::PathBuf};
 
-use self::interactive::{command::default_actions, default_interactive_callback};
+use self::interactive::{
+    command::{default_actions, Interactive},
+    default_interactive_callback,
+};
 
 const CTX_DEFAULT_FILE: &str = "./ctx.ron";
 const CTX_DEFAULT_FILE_VAR: &str = "LITEDASM_CTX_PATH";
@@ -56,7 +59,7 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     if let Some(label) = &cfg.start_at_label {
         ctx.set_start_to_symbol(label)?;
     }
-    ctx.set_org(ctx.org + ctx.start_read as Address);
+    // ctx.set_org(ctx.org + ctx.start_read as Address);
 
     ctx.set_end(cfg.end_read);
     if let Some(len) = cfg.read_len {
@@ -107,15 +110,12 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     let mut ctx = read_ctx(cfg)?;
 
     // run commands using the parser
-    let actions = default_actions();
+    let mut interactive = Interactive {
+        actions: default_actions(),
+        data: Default::default(),
+    };
     for run in &cfg.run {
-        actions.eval(&run)?.execute(
-            default_interactive_callback,
-            &arch,
-            &mut ctx,
-            None,
-            &actions,
-        )?;
+        interactive.execute(default_interactive_callback, run, &arch, &mut ctx, cfg)?;
     }
 
     if let Some(command) = &cfg.command {
@@ -130,11 +130,11 @@ pub fn init(cfg: &Config) -> FdResult<()> {
                 let mut f = std::fs::File::open(input)?;
                 let mut buffer = Vec::new();
                 f.read_to_end(&mut buffer)?;
-                interactive::command_line(cfg, arch, ctx, Some(buffer))
+                interactive::command_line(cfg, arch, ctx, buffer)
             }
         }
     } else {
-        interactive::command_line(cfg, arch, ctx, None)
+        interactive::command_line(cfg, arch, ctx, vec![])
     }
 }
 

@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use thiserror::Error;
 
 use super::dasm::Address;
@@ -33,4 +35,6 @@ pub enum Error {
     Other(#[from] anyhow::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    ParseIntError(#[from] ParseIntError),
 }

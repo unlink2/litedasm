@@ -1,12 +1,12 @@
 pub mod command;
 
 use crate::{
-    core::dasm::arch::{Arch, Archs, Context},
+    core::dasm::arch::{Archs, Context},
     prelude::{Config, FdResult},
 };
 use rustyline::error::ReadlineError;
 
-use self::command::{default_actions, ActionList};
+use self::command::{default_actions, Interactive};
 
 pub enum CallbackKind {
     None,
@@ -19,33 +19,19 @@ pub fn default_interactive_callback(s: &str, _kind: CallbackKind) -> FdResult<()
     Ok(())
 }
 
-pub fn command_line(
-    _cfg: &Config,
-    arch: Archs,
-    mut ctx: Context,
-    data: Option<Vec<u8>>,
-) -> FdResult<()> {
+pub fn command_line(cfg: &Config, arch: Archs, mut ctx: Context, data: Vec<u8>) -> FdResult<()> {
     let mut rl = rustyline::DefaultEditor::new().expect("Unable to init interactive mode");
     let actions = default_actions();
+    let mut interactive = Interactive { actions, data };
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str()).expect("History error");
-                let cmd = actions.eval(&line);
-                match cmd {
-                    Ok(cmd) => {
-                        if let Err(err) = cmd.execute(
-                            default_interactive_callback,
-                            &arch,
-                            &mut ctx,
-                            data.as_deref(),
-                            &actions,
-                        ) {
-                            eprintln!("{:?}", err);
-                        }
-                    }
-                    Err(err) => eprintln!("{:?}", err),
+                if let Err(err) =
+                    interactive.execute(default_interactive_callback, &line, &arch, &mut ctx, cfg)
+                {
+                    eprintln!("{:?}", err);
                 }
             }
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => return Ok(()),

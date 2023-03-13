@@ -1,22 +1,50 @@
+use std::{
+    io::{LineWriter, Read},
+    path::PathBuf,
+};
+
+use log::info;
+
 use crate::{
+    cli::print_callback,
     core::dasm::arch::{Archs, Context},
-    prelude::{Error, FdResult},
+    prelude::{auto_radix_usize, Config, Error, FdResult},
 };
 
 use super::{CallbackKind, InteractiveCallback};
 
 pub fn default_actions() -> ActionList {
-    ActionList {
-        actions: vec![
-            Action::new(
-                "?",
-                vec![Param::with_default("command", "")],
-                help_parser,
-                "Display help",
-            ),
-            Action::new("q", vec![], exit_parser, "Quit the program"),
-        ],
-    }
+    let mut actions = vec![
+        Action::new(
+            "?",
+            vec![Param::with_default("command", "")],
+            help_parser,
+            "Display help",
+        ),
+        Action::new("q", vec![], exit_parser, "Quit the program"),
+        Action::new("dc", vec![], dump_code_parser, "Dump code"),
+        Action::new(
+            "rf",
+            vec![Param::new("path")],
+            read_file_parser,
+            "Read a file",
+        ),
+        Action::new(
+            "dsl",
+            vec![Param::new("label")],
+            dump_start_label_parser,
+            "Set dump starting point to a label",
+        ),
+        Action::new(
+            "drl",
+            vec![Param::new("len")],
+            dump_read_len_parser,
+            "Set dump read lenght",
+        ),
+    ];
+
+    actions.sort_by_key(|l| l.name.to_owned());
+    ActionList { actions }
 }
 
 /// Command syntax:
@@ -124,22 +152,78 @@ impl Action {
 pub enum Commands {
     Exit,
     Help(String),
+    DumpCode,
+    SetStartLabel(String),
+    SetReadLen(usize),
+    ReadFile(PathBuf),
 }
 
 impl Commands {
     pub fn execute(
         &self,
         mut f: impl InteractiveCallback,
-        _arch: &Archs,
-        _ctx: &mut Context,
-        _data: Option<&[u8]>,
-        actions: &ActionList,
+        arch: &Archs,
+        ctx: &mut Context,
+        interactive: &mut Interactive,
+        cfg: &Config,
     ) -> FdResult<()> {
         match self {
             Commands::Exit => std::process::exit(0),
-            Commands::Help(cmd) => actions.help(&mut f, &cmd),
+            Commands::Help(cmd) => interactive.actions.help(&mut f, &cmd),
+            Commands::DumpCode => {
+                let mut output = LineWriter::new(std::io::stdout().lock());
+                ctx.restart();
+                arch.disas_ctx(
+                    |node, kind, data, arch, ctx| {
+                        print_callback(node, kind, data, arch, ctx, &mut output, cfg)
+                    },
+                    &interactive.data,
+                    ctx,
+                )?;
+
+                Ok(())
+            }
+            Commands::ReadFile(path) => {
+                let mut f = std::fs::File::open(path)?;
+                let mut buffer = Vec::new();
+                f.read_to_end(&mut buffer)?;
+                interactive.data = buffer;
+                info!("Binary loaded from {:?}", path);
+                Ok(())
+            }
+            Commands::SetStartLabel(label) => {
+                ctx.set_start_to_symbol(label)?;
+
+                info!("New ctx start address: {:x}", ctx.start_read);
+                Ok(())
+            }
+            Commands::SetReadLen(len) => {
+                ctx.set_len(*len);
+                info!("New ctx end address: {:?}", ctx.end_read);
+                Ok(())
+            }
         }
         // Ok(())
+    }
+}
+
+pub struct Interactive {
+    pub actions: ActionList,
+    pub data: Vec<u8>,
+}
+
+impl Interactive {
+    pub fn execute(
+        &mut self,
+        f: impl InteractiveCallback,
+        input: &str,
+        arch: &Archs,
+        ctx: &mut Context,
+        cfg: &Config,
+    ) -> FdResult<()> {
+        let cmd = self.actions.eval(input)?;
+        cmd.execute(f, &arch, ctx, self, cfg)?;
+        Ok(())
     }
 }
 
@@ -162,6 +246,13 @@ fn get_arg_or(args: &[&str], params: &[Param], index: usize) -> FdResult<String>
     }
 }
 
+fn get_arg_or_into<T>(args: &[&str], params: &[Param], index: usize) -> FdResult<T>
+where
+    T: From<String>,
+{
+    Ok(get_arg_or(args, params, index)?.into())
+}
+
 fn has_too_many_args(args: &[&str], params: &[Param]) -> FdResult<()> {
     if args.len() > params.len() {
         Err(Error::TooManyArguments)
@@ -181,4 +272,29 @@ fn help_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
 fn exit_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     Ok(Commands::Exit)
+}
+fn dump_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let label = get_arg_or(args, params, 0)?;
+    // let to: usize = auto_radix_usize(&get_arg_or(args, params, 1)?)?;
+
+    Ok(Commands::SetStartLabel(label))
+}
+
+fn dump_read_len_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let to: usize = auto_radix_usize(&get_arg_or(args, params, 0)?)?;
+    Ok(Commands::SetReadLen(to))
+}
+
+fn dump_code_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    Ok(Commands::DumpCode)
+}
+
+fn read_file_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let path: PathBuf = get_arg_or_into(args, params, 0)?;
+
+    Ok(Commands::ReadFile(path))
 }

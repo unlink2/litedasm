@@ -756,6 +756,8 @@ pub struct Context {
     #[cfg_attr(feature = "serde", serde(default))]
     pub offset: Address,
     #[cfg_attr(feature = "serde", serde(default))]
+    pub static_offset: Address,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub start_read: usize,
     #[cfg_attr(feature = "serde", serde(default))]
     pub end_read: Option<usize>,
@@ -798,6 +800,7 @@ impl Context {
             tr_ctx: Default::default(),
             static_ops_pre: Default::default(),
             static_ops_post: Default::default(),
+            static_offset: 0,
         }
     }
 
@@ -812,7 +815,7 @@ impl Context {
     }
 
     pub fn address(&self) -> Address {
-        self.org + self.offset
+        self.org + self.offset + self.static_offset
     }
 
     pub fn def_symbol(&mut self, sym: Symbol) {
@@ -837,6 +840,7 @@ impl Context {
 
     pub fn set_start(&mut self, addr: Option<usize>) {
         self.start_read = addr.unwrap_or(0);
+        self.static_offset = self.start_read as Address;
     }
 
     pub fn set_start_to_symbol(&mut self, label: &str) -> FdResult<()> {
@@ -846,6 +850,8 @@ impl Context {
             .ok_or(Error::LabelNotFound(label.to_owned()))?;
 
         self.start_read = s.value as usize - self.org as usize;
+
+        self.static_offset = self.start_read as Address;
 
         Ok(())
     }

@@ -153,7 +153,7 @@ impl Display for ArchKind {
     }
 }
 
-fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
+pub fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
     if s.starts_with("0x") {
         let s = &s[2..];
         ValueType::from_str_radix(s, 16)
@@ -168,7 +168,7 @@ fn auto_radix_value(s: &str) -> Result<ValueType, ParseIntError> {
     }
 }
 
-fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
+pub fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
     if s.starts_with("0x") {
         let s = &s[2..];
         Address::from_str_radix(s, 16)
@@ -183,7 +183,7 @@ fn auto_radix_address(s: &str) -> Result<Address, ParseIntError> {
     }
 }
 
-fn auto_radix_usize(s: &str) -> Result<usize, ParseIntError> {
+pub fn auto_radix_usize(s: &str) -> Result<usize, ParseIntError> {
     if s.starts_with("0x") {
         let s = &s[2..];
         usize::from_str_radix(s, 16)
