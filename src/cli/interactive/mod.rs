@@ -23,7 +23,12 @@ pub fn default_interactive_callback(s: &str, _kind: CallbackKind) -> FdResult<()
     Ok(())
 }
 
-pub fn command_line(cfg: &Config, arch: Archs, mut ctx: Context, data: Vec<u8>) -> FdResult<()> {
+pub fn command_line(
+    cfg: &Config,
+    mut arch: Archs,
+    mut ctx: Context,
+    data: Vec<u8>,
+) -> FdResult<()> {
     let mut rl = rustyline::DefaultEditor::new().expect("Unable to init interactive mode");
     let actions = default_actions();
     let mut cmd_ctx = CommandContext {
@@ -44,7 +49,7 @@ pub fn command_line(cfg: &Config, arch: Archs, mut ctx: Context, data: Vec<u8>) 
                             print_callback(node, kind, data, arch, ctx, &mut output, cfg)
                         },
                         &line,
-                        &arch,
+                        &mut arch,
                         &mut ctx,
                         cfg,
                     ) {

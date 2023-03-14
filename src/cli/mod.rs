@@ -107,7 +107,7 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     }
 
     // first get the arch
-    let arch = cfg.arch.to_arch(cfg)?;
+    let mut arch = cfg.arch.to_arch(cfg)?;
     let mut ctx = read_ctx(cfg)?;
 
     // run commands using the parser
@@ -125,7 +125,7 @@ pub fn init(cfg: &Config) -> FdResult<()> {
                     print_callback(node, kind, data, arch, ctx, &mut output, cfg)
                 },
                 run,
-                &arch,
+                &mut arch,
                 &mut ctx,
                 cfg,
             )?;

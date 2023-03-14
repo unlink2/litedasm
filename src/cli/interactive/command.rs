@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     io::{BufReader, LineWriter, Read, Write},
     path::{Path, PathBuf},
 };
@@ -7,13 +8,21 @@ use log::info;
 
 use crate::{
     core::dasm::{
-        arch::{Archs, Context, DisasCallback},
+        arch::{a6502, a65c02, a65c816, Archs, Context, DisasCallback},
         Address,
     },
-    prelude::{auto_radix_address, auto_radix_usize, ArchKind, Config, Error, FdResult},
+    prelude::{auto_radix_address, auto_radix_usize, Config, Error, FdResult},
 };
 
 use super::{CallbackKind, CommandCallback};
+
+fn arch_map() -> BTreeMap<String, Archs> {
+    let mut map: BTreeMap<String, Archs> = Default::default();
+    map.insert("6502".into(), a6502::ARCH.to_owned());
+    map.insert("65c02".into(), a65c02::ARCH.to_owned());
+    map.insert("65816".into(), a65c816::ARCH.to_owned());
+    map
+}
 
 pub fn default_actions() -> ActionList {
     let mut actions = vec![
@@ -26,7 +35,7 @@ pub fn default_actions() -> ActionList {
         Action::new("q", vec![], exit_parser, "Quit the program"),
         Action::new("dc", vec![], disas_code_parser, "Disassemble code"),
         Action::new(
-            "rf",
+            "lf",
             vec![Param::new("path")],
             optional_file_read_path_parser,
             "Read a file",
@@ -60,6 +69,31 @@ pub fn default_actions() -> ActionList {
             vec![Param::new("path")],
             optional_arch_write_path_parser,
             "Save the current architecture",
+        ),
+        Action::new(
+            "lc",
+            vec![Param::new("path")],
+            optional_ctx_read_path_parser,
+            "Read context from file",
+        ),
+        Action::new(
+            "la",
+            vec![Param::new("path")],
+            optional_arch_read_path_parser,
+            "Read arch from file",
+        ),
+        Action::new(
+            "lab",
+            vec![Param::new("name")],
+            load_build_in_arch_parser,
+            &format!(
+                "Load built-in arch (possible values:{})",
+                arch_map().iter().fold("".to_string(), |mut p, (k, _v)| {
+                    p.push_str(" ");
+                    p.push_str(&k);
+                    p
+                })
+            ),
         ),
     ];
 
@@ -179,7 +213,8 @@ pub enum Commands {
     SetReadLen(usize),
     ReadFile(Option<PathBuf>),
     ReadContext(Option<PathBuf>),
-    ReadArch(Option<ArchKind>),
+    ReadArch(Option<PathBuf>),
+    UseArch(String),
     SaveArch(Option<PathBuf>),
     SaveContext(Option<PathBuf>),
 }
@@ -189,7 +224,7 @@ impl Commands {
         &self,
         mut f: impl CommandCallback,
         mut dcb: impl DisasCallback,
-        arch: &Archs,
+        arch: &mut Archs,
         ctx: &mut Context,
         cmd_ctx: &mut CommandContext,
         _cfg: &Config,
@@ -228,8 +263,24 @@ impl Commands {
 
                 Ok(())
             }
-            Commands::ReadContext(_) => todo!(),
-            Commands::ReadArch(_) => todo!(),
+            Commands::ReadContext(path) => {
+                let mut f = Self::open_input(path.as_deref())?;
+
+                info!("Reading from context path '{path:?}'");
+                let mut data = String::new();
+                f.read_to_string(&mut data)?;
+                *ctx = ron::from_str(&data).map_err(|_| Error::FileDeserError)?;
+                Ok(())
+            }
+            Commands::ReadArch(path) => {
+                let mut f = Self::open_input(path.as_deref())?;
+
+                info!("Reading from arch path '{path:?}'");
+                let mut data = String::new();
+                f.read_to_string(&mut data)?;
+                *arch = ron::from_str(&data).map_err(|_| Error::FileDeserError)?;
+                Ok(())
+            }
             Commands::SaveArch(path) => {
                 info!("Saving arch to {path:?}");
                 let mut f = Self::open_output(path.as_deref())?;
@@ -250,6 +301,14 @@ impl Commands {
                 )?;
 
                 Ok(())
+            }
+            Commands::UseArch(value) => {
+                if let Some(new_arch) = arch_map().get(value) {
+                    *arch = new_arch.to_owned();
+                    Ok(())
+                } else {
+                    Err(Error::ArchNotFound(value.into()))
+                }
             }
         }
         // Ok(())
@@ -295,17 +354,18 @@ impl CommandContext {
         f: impl CommandCallback,
         dcb: impl DisasCallback,
         input: &str,
-        arch: &Archs,
+        arch: &mut Archs,
         ctx: &mut Context,
         cfg: &Config,
     ) -> FdResult<()> {
         let cmd = self.actions.eval(input)?;
-        cmd.execute(f, dcb, &arch, ctx, self, cfg)?;
+        cmd.execute(f, dcb, arch, ctx, self, cfg)?;
         Ok(())
     }
 }
 
 /* Command parsers */
+// TODO in the future we should handle this with proc macros
 
 fn try_get_arg(args: &[&str], params: &[Param], index: usize) -> FdResult<String> {
     let arg = args.get(index);
@@ -410,4 +470,34 @@ fn disas_start_address_parser(args: &[&str], params: &[Param]) -> FdResult<Comma
     let address = auto_radix_address(&try_get_arg(args, params, 0)?)?;
 
     Ok(Commands::SetStartAddress(address))
+}
+
+fn optional_ctx_read_path_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+
+    let path = get_optional_arg(args, params, 0);
+
+    if let Some(path) = path {
+        Ok(Commands::ReadContext(Some(expand_path(&path))))
+    } else {
+        Ok(Commands::ReadContext(None))
+    }
+}
+
+fn optional_arch_read_path_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+
+    let path = get_optional_arg(args, params, 0);
+
+    if let Some(path) = path {
+        Ok(Commands::ReadArch(Some(expand_path(&path))))
+    } else {
+        Ok(Commands::ReadArch(None))
+    }
+}
+
+fn load_build_in_arch_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let name = try_get_arg(args, params, 0)?;
+    Ok(Commands::UseArch(name))
 }

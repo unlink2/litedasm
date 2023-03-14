@@ -31,6 +31,8 @@ pub enum Error {
     InsufficientArguments,
     #[error("Too many arguments")]
     TooManyArguments,
+    #[error("Failed reading file")]
+    FileDeserError,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]
