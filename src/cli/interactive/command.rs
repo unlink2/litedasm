@@ -9,6 +9,7 @@ use log::info;
 use crate::{
     core::dasm::{
         arch::{a6502, a65c02, a65c816, Archs, Context, DisasCallback},
+        symbols::Symbol,
         Address,
     },
     prelude::{auto_radix_address, auto_radix_usize, Config, Error, FdResult},
@@ -114,16 +115,21 @@ pub struct ActionList {
 impl ActionList {
     pub fn eval(&self, input: &str) -> FdResult<Commands> {
         // tokenize the input
-        let mut split = input.split_whitespace();
-        let cmd = split.next().unwrap_or("");
-        let args: Vec<&str> = split.collect();
-        let action = self
-            .actions
-            .iter()
-            .find(|x| x.name == cmd)
-            .ok_or(Error::UnknownCommand(cmd.into()))?;
+        let split = shell_words::split(input).unwrap();
+        let cmd = split.first();
+        if let Some(cmd) = cmd {
+            let args = if split.len() > 1 { &split[1..] } else { &[] };
+            let action = self
+                .actions
+                .iter()
+                .find(|x| x.name == *cmd)
+                .ok_or(Error::UnknownCommand(cmd.into()))?;
 
-        action.eval(&args)
+            let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
+            action.eval(&args)
+        } else {
+            Err(Error::Unknown)
+        }
     }
 
     fn help(&self, f: &mut dyn CommandCallback, cmd: &str) -> FdResult<()> {
@@ -217,6 +223,10 @@ pub enum Commands {
     UseArch(String),
     SaveArch(Option<PathBuf>),
     SaveContext(Option<PathBuf>),
+    SetOrg(Address),
+    NewSymbol(Symbol),
+    DefFlag(String, String),
+    UndefFlag(String),
 }
 
 impl Commands {
@@ -309,6 +319,23 @@ impl Commands {
                 } else {
                     Err(Error::ArchNotFound(value.into()))
                 }
+            }
+            Commands::SetOrg(address) => {
+                info!("Setting ctx org to {address:x}");
+                ctx.set_org(*address);
+                Ok(())
+            }
+            Commands::NewSymbol(sym) => {
+                ctx.def_symbol(sym.to_owned());
+                Ok(())
+            }
+            Commands::DefFlag(key, value) => {
+                ctx.def_flag(key, value);
+                Ok(())
+            }
+            Commands::UndefFlag(key) => {
+                ctx.undef_flag(key);
+                Ok(())
             }
         }
         // Ok(())

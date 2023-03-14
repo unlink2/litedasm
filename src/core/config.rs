@@ -205,6 +205,9 @@ pub struct Config {
     #[cfg_attr(feature = "cli", command(subcommand))]
     pub command: Option<Commands>,
 
+    // pub input: Option<PatbBuf>,
+    // pub output: Option<PathBuf>,
+
     // built in arch that may be loaded
     #[cfg_attr(feature = "cli", clap(long, short))]
     #[cfg_attr(feature = "cli", arg(default_value_t))]

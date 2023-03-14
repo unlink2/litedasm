@@ -1,5 +1,6 @@
 #![feature(trait_alias)]
 #![feature(let_chains)]
+#![feature(str_split_whitespace_remainder)]
 
 #[cfg(feature = "cli")]
 pub mod cli;
