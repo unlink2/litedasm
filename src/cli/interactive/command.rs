@@ -1,4 +1,7 @@
-use std::{io::Read, path::PathBuf};
+use std::{
+    io::{BufReader, LineWriter, Read, Write},
+    path::{Path, PathBuf},
+};
 
 use log::info;
 
@@ -7,7 +10,7 @@ use crate::{
         arch::{Archs, Context, DisasCallback},
         Address,
     },
-    prelude::{auto_radix_address, auto_radix_usize, Config, Error, FdResult},
+    prelude::{auto_radix_address, auto_radix_usize, ArchKind, Config, Error, FdResult},
 };
 
 use super::{CallbackKind, CommandCallback};
@@ -25,7 +28,7 @@ pub fn default_actions() -> ActionList {
         Action::new(
             "rf",
             vec![Param::new("path")],
-            read_file_parser,
+            optional_file_read_path_parser,
             "Read a file",
         ),
         Action::new(
@@ -45,6 +48,18 @@ pub fn default_actions() -> ActionList {
             vec![Param::new("address")],
             disas_start_address_parser,
             "Set disas starting point to an address",
+        ),
+        Action::new(
+            "sc",
+            vec![Param::new("path")],
+            optional_ctx_write_path_parser,
+            "Save the current context",
+        ),
+        Action::new(
+            "sa",
+            vec![Param::new("path")],
+            optional_arch_write_path_parser,
+            "Save the current architecture",
         ),
     ];
 
@@ -162,7 +177,11 @@ pub enum Commands {
     SetStartLabel(String),
     SetStartAddress(Address),
     SetReadLen(usize),
-    ReadFile(PathBuf),
+    ReadFile(Option<PathBuf>),
+    ReadContext(Option<PathBuf>),
+    ReadArch(Option<ArchKind>),
+    SaveArch(Option<PathBuf>),
+    SaveContext(Option<PathBuf>),
 }
 
 impl Commands {
@@ -185,7 +204,7 @@ impl Commands {
                 Ok(())
             }
             Commands::ReadFile(path) => {
-                let mut f = std::fs::File::open(path)?;
+                let mut f = Self::open_input(path.as_deref())?;
                 let mut buffer = Vec::new();
                 f.read_to_end(&mut buffer)?;
                 cmd_ctx.data = buffer;
@@ -209,8 +228,49 @@ impl Commands {
 
                 Ok(())
             }
+            Commands::ReadContext(_) => todo!(),
+            Commands::ReadArch(_) => todo!(),
+            Commands::SaveArch(path) => {
+                info!("Saving arch to {path:?}");
+                let mut f = Self::open_output(path.as_deref())?;
+                f.write_all(
+                    ron::ser::to_string_pretty(arch, Default::default())
+                        .unwrap()
+                        .as_bytes(),
+                )?;
+                Ok(())
+            }
+            Commands::SaveContext(path) => {
+                info!("Saving ctx to {path:?}");
+                let mut f = Self::open_output(path.as_deref())?;
+                f.write_all(
+                    ron::ser::to_string_pretty(ctx, Default::default())
+                        .unwrap()
+                        .as_bytes(),
+                )?;
+
+                Ok(())
+            }
         }
         // Ok(())
+    }
+
+    pub fn open_input(path: Option<&Path>) -> FdResult<Box<dyn Read>> {
+        Ok(if let Some(path) = &path {
+            Box::new(BufReader::new(std::fs::File::open(path)?))
+        } else {
+            Box::new(BufReader::new(std::io::stdin()))
+        })
+    }
+
+    pub fn open_output(path: Option<&Path>) -> FdResult<Box<dyn Write>> {
+        Ok(if let Some(path) = &path {
+            Box::new(LineWriter::new(
+                std::fs::File::options().write(true).open(path)?,
+            ))
+        } else {
+            Box::new(LineWriter::new(std::io::stdout().lock()))
+        })
     }
 }
 
@@ -221,6 +281,15 @@ pub struct CommandContext {
 }
 
 impl CommandContext {
+    pub fn from_reader(actions: ActionList, input: &mut dyn Read) -> FdResult<Self> {
+        let mut buffer = Vec::new();
+        input.read_to_end(&mut buffer)?;
+        Ok(Self {
+            actions,
+            data: buffer,
+        })
+    }
+
     pub fn execute(
         &mut self,
         f: impl CommandCallback,
@@ -238,7 +307,7 @@ impl CommandContext {
 
 /* Command parsers */
 
-fn get_arg_or(args: &[&str], params: &[Param], index: usize) -> FdResult<String> {
+fn try_get_arg(args: &[&str], params: &[Param], index: usize) -> FdResult<String> {
     let arg = args.get(index);
     let param = params.get(index);
 
@@ -255,11 +324,8 @@ fn get_arg_or(args: &[&str], params: &[Param], index: usize) -> FdResult<String>
     }
 }
 
-fn get_arg_or_into<T>(args: &[&str], params: &[Param], index: usize) -> FdResult<T>
-where
-    T: From<String>,
-{
-    Ok(get_arg_or(args, params, index)?.into())
+fn get_optional_arg(args: &[&str], params: &[Param], index: usize) -> Option<String> {
+    try_get_arg(args, params, index).ok()
 }
 
 fn has_too_many_args(args: &[&str], params: &[Param]) -> FdResult<()> {
@@ -270,10 +336,14 @@ fn has_too_many_args(args: &[&str], params: &[Param]) -> FdResult<()> {
     }
 }
 
+fn expand_path(path: &str) -> PathBuf {
+    PathBuf::from(shellexpand::tilde(path).into_owned())
+}
+
 fn help_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
 
-    let cmd = get_arg_or(args, params, 0)?;
+    let cmd = try_get_arg(args, params, 0)?;
 
     Ok(Commands::Help(cmd))
 }
@@ -282,9 +352,10 @@ fn exit_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     Ok(Commands::Exit)
 }
+
 fn disas_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
-    let label = get_arg_or(args, params, 0)?;
+    let label = try_get_arg(args, params, 0)?;
     // let to: usize = auto_radix_usize(&get_arg_or(args, params, 1)?)?;
 
     Ok(Commands::SetStartLabel(label))
@@ -292,7 +363,7 @@ fn disas_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Command
 
 fn disas_read_len_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
-    let to: usize = auto_radix_usize(&get_arg_or(args, params, 0)?)?;
+    let to: usize = auto_radix_usize(&try_get_arg(args, params, 0)?)?;
     Ok(Commands::SetReadLen(to))
 }
 
@@ -301,16 +372,42 @@ fn disas_code_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     Ok(Commands::DisasCode)
 }
 
-fn read_file_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+fn optional_file_read_path_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
-    let path: PathBuf = get_arg_or_into(args, params, 0)?;
+    let path = get_optional_arg(args, params, 0);
 
-    Ok(Commands::ReadFile(path))
+    if let Some(path) = path {
+        Ok(Commands::SaveContext(Some(expand_path(&path))))
+    } else {
+        Ok(Commands::ReadFile(None))
+    }
+}
+
+fn optional_ctx_write_path_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let path = get_optional_arg(args, params, 0);
+
+    if let Some(path) = path {
+        Ok(Commands::SaveContext(Some(expand_path(&path))))
+    } else {
+        Ok(Commands::SaveContext(None))
+    }
+}
+
+fn optional_arch_write_path_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+    has_too_many_args(args, params)?;
+    let path = get_optional_arg(args, params, 0);
+
+    if let Some(path) = path {
+        Ok(Commands::SaveArch(Some(expand_path(&path))))
+    } else {
+        Ok(Commands::SaveArch(None))
+    }
 }
 
 fn disas_start_address_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
-    let address = auto_radix_address(&get_arg_or(args, params, 0)?)?;
+    let address = auto_radix_address(&try_get_arg(args, params, 0)?)?;
 
     Ok(Commands::SetStartAddress(address))
 }
