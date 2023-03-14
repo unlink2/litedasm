@@ -760,7 +760,7 @@ pub struct Context {
     #[cfg_attr(feature = "serde", serde(default))]
     pub start_read: usize,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub end_read: Option<usize>,
+    pub len_read: Option<usize>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub syms: SymbolList,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -794,7 +794,7 @@ impl Context {
             offset: 0,
             analyze: false,
             start_read: 0,
-            end_read: None,
+            len_read: None,
             patches: Default::default(),
             allow_raw: false,
             tr_ctx: Default::default(),
@@ -860,12 +860,8 @@ impl Context {
         self.org = org;
     }
 
-    pub fn set_end(&mut self, addr: Option<usize>) {
-        self.end_read = addr;
-    }
-
-    pub fn set_len(&mut self, len: usize) {
-        self.end_read = Some(self.start_read + len);
+    pub fn set_len(&mut self, len: Option<usize>) {
+        self.len_read = len;
     }
 }
 
@@ -1023,8 +1019,8 @@ impl Archs {
         data: &[u8],
         ctx: &mut Context,
     ) -> FdResult<()> {
-        let end_read = ctx.end_read.unwrap_or(data.len()).min(data.len());
         let start_read = ctx.start_read.min(data.len());
+        let end_read = start_read + ctx.len_read.unwrap_or(data.len()).min(data.len());
         let data = &data[start_read..end_read];
         info!(
             "Starting from {start_read} to {end_read} at org {}",

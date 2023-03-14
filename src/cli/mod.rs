@@ -13,10 +13,13 @@ use crate::{
 };
 use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
-use std::{io::prelude::*, path::PathBuf};
+use std::{
+    io::{prelude::*, LineWriter},
+    path::PathBuf,
+};
 
 use self::interactive::{
-    command::{default_actions, Interactive},
+    command::{default_actions, CommandContext},
     default_interactive_callback,
 };
 
@@ -61,10 +64,8 @@ pub fn read_ctx(cfg: &Config) -> FdResult<Context> {
     }
     // ctx.set_org(ctx.org + ctx.start_read as Address);
 
-    ctx.set_end(cfg.end_read);
-    if let Some(len) = cfg.read_len {
-        ctx.set_len(len);
-    }
+    // ctx.set_end(cfg.end_read);
+    ctx.set_len(cfg.read_len);
 
     Ok(ctx)
 }
@@ -110,13 +111,25 @@ pub fn init(cfg: &Config) -> FdResult<()> {
     let mut ctx = read_ctx(cfg)?;
 
     // run commands using the parser
-    let mut interactive = Interactive {
-        actions: default_actions(),
-        data: Default::default(),
-        ..Default::default()
-    };
-    for run in &cfg.run {
-        interactive.execute(default_interactive_callback, run, &arch, &mut ctx, cfg)?;
+    {
+        let mut interactive = CommandContext {
+            actions: default_actions(),
+            data: Default::default(),
+            ..Default::default()
+        };
+        let mut output = LineWriter::new(std::io::stdout().lock());
+        for run in &cfg.run {
+            interactive.execute(
+                default_interactive_callback,
+                |node, kind, data, arch, ctx| {
+                    print_callback(node, kind, data, arch, ctx, &mut output, cfg)
+                },
+                run,
+                &arch,
+                &mut ctx,
+                cfg,
+            )?;
+        }
     }
 
     if let Some(command) = &cfg.command {

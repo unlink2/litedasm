@@ -1,20 +1,16 @@
-use std::{
-    io::{LineWriter, Read},
-    path::PathBuf,
-};
+use std::{io::Read, path::PathBuf};
 
 use log::info;
 
 use crate::{
-    cli::print_callback,
     core::dasm::{
-        arch::{Archs, Context},
+        arch::{Archs, Context, DisasCallback},
         Address,
     },
     prelude::{auto_radix_address, auto_radix_usize, Config, Error, FdResult},
 };
 
-use super::{CallbackKind, InteractiveCallback};
+use super::{CallbackKind, CommandCallback};
 
 pub fn default_actions() -> ActionList {
     let mut actions = vec![
@@ -25,7 +21,7 @@ pub fn default_actions() -> ActionList {
             "Display help",
         ),
         Action::new("q", vec![], exit_parser, "Quit the program"),
-        Action::new("dc", vec![], dump_code_parser, "Dump code"),
+        Action::new("dc", vec![], disas_code_parser, "Disassemble code"),
         Action::new(
             "rf",
             vec![Param::new("path")],
@@ -35,20 +31,20 @@ pub fn default_actions() -> ActionList {
         Action::new(
             "dcl",
             vec![Param::new("label")],
-            dump_start_label_parser,
-            "Set dump starting point to a label",
+            disas_start_label_parser,
+            "Set disas starting point to a label",
         ),
         Action::new(
             "dcr",
             vec![Param::new("len")],
-            dump_read_len_parser,
-            "Set dump read lenght",
+            disas_read_len_parser,
+            "Set disas read length",
         ),
         Action::new(
             "dca",
             vec![Param::new("address")],
-            dump_start_address_parser,
-            "Set dump starting point to an address",
+            disas_start_address_parser,
+            "Set disas starting point to an address",
         ),
     ];
 
@@ -81,7 +77,7 @@ impl ActionList {
         action.eval(&args)
     }
 
-    fn help(&self, f: &mut dyn InteractiveCallback, cmd: &str) -> FdResult<()> {
+    fn help(&self, f: &mut dyn CommandCallback, cmd: &str) -> FdResult<()> {
         let mut printed = false;
         for action in &self.actions {
             if action.name.starts_with(cmd) {
@@ -142,7 +138,7 @@ impl Action {
         (self.parser)(args, &self.params)
     }
 
-    fn help(&self, f: &mut dyn InteractiveCallback) -> FdResult<()> {
+    fn help(&self, f: &mut dyn CommandCallback) -> FdResult<()> {
         f(&self.name, super::CallbackKind::None)?;
         self.params.iter().try_for_each(|x| {
             if let Some(default_value) = &x.default_value {
@@ -162,7 +158,7 @@ impl Action {
 pub enum Commands {
     Exit,
     Help(String),
-    DumpCode,
+    DisasCode,
     SetStartLabel(String),
     SetStartAddress(Address),
     SetReadLen(usize),
@@ -172,25 +168,19 @@ pub enum Commands {
 impl Commands {
     pub fn execute(
         &self,
-        mut f: impl InteractiveCallback,
+        mut f: impl CommandCallback,
+        mut dcb: impl DisasCallback,
         arch: &Archs,
         ctx: &mut Context,
-        interactive: &mut Interactive,
-        cfg: &Config,
+        cmd_ctx: &mut CommandContext,
+        _cfg: &Config,
     ) -> FdResult<()> {
         match self {
             Commands::Exit => std::process::exit(0),
-            Commands::Help(cmd) => interactive.actions.help(&mut f, &cmd),
-            Commands::DumpCode => {
-                let mut output = LineWriter::new(std::io::stdout().lock());
+            Commands::Help(cmd) => cmd_ctx.actions.help(&mut f, &cmd),
+            Commands::DisasCode => {
                 ctx.restart();
-                arch.disas_ctx(
-                    |node, kind, data, arch, ctx| {
-                        print_callback(node, kind, data, arch, ctx, &mut output, cfg)
-                    },
-                    &interactive.data,
-                    ctx,
-                )?;
+                arch.disas_ctx(&mut dcb, &cmd_ctx.data, ctx)?;
 
                 Ok(())
             }
@@ -198,33 +188,25 @@ impl Commands {
                 let mut f = std::fs::File::open(path)?;
                 let mut buffer = Vec::new();
                 f.read_to_end(&mut buffer)?;
-                interactive.data = buffer;
+                cmd_ctx.data = buffer;
                 info!("Binary loaded from {:?}", path);
                 Ok(())
             }
             Commands::SetStartLabel(label) => {
                 ctx.set_start_to_symbol(label)?;
                 info!("New ctx start address: {:x}", ctx.start_read);
-                if let Some(last_len) = interactive.last_len {
-                    ctx.set_len(last_len);
-                    info!("New ctx end address: {:?}", ctx.end_read);
-                }
 
                 Ok(())
             }
             Commands::SetReadLen(len) => {
-                ctx.set_len(*len);
-                info!("New ctx end address: {:?}", ctx.end_read);
-                interactive.last_len = Some(*len);
+                ctx.set_len(Some(*len));
+                info!("New ctx read len: {:?}", ctx.len_read);
                 Ok(())
             }
             Commands::SetStartAddress(address) => {
                 ctx.set_start(Some(*address as usize));
                 info!("New ctx start address: {:x}", ctx.start_read);
-                if let Some(last_len) = interactive.last_len {
-                    ctx.set_len(last_len);
-                    info!("New ctx end address: {:?}", ctx.end_read);
-                }
+
                 Ok(())
             }
         }
@@ -233,24 +215,23 @@ impl Commands {
 }
 
 #[derive(Default)]
-pub struct Interactive {
+pub struct CommandContext {
     pub actions: ActionList,
     pub data: Vec<u8>,
-
-    pub last_len: Option<usize>,
 }
 
-impl Interactive {
+impl CommandContext {
     pub fn execute(
         &mut self,
-        f: impl InteractiveCallback,
+        f: impl CommandCallback,
+        dcb: impl DisasCallback,
         input: &str,
         arch: &Archs,
         ctx: &mut Context,
         cfg: &Config,
     ) -> FdResult<()> {
         let cmd = self.actions.eval(input)?;
-        cmd.execute(f, &arch, ctx, self, cfg)?;
+        cmd.execute(f, dcb, &arch, ctx, self, cfg)?;
         Ok(())
     }
 }
@@ -301,7 +282,7 @@ fn exit_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     Ok(Commands::Exit)
 }
-fn dump_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+fn disas_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     let label = get_arg_or(args, params, 0)?;
     // let to: usize = auto_radix_usize(&get_arg_or(args, params, 1)?)?;
@@ -309,15 +290,15 @@ fn dump_start_label_parser(args: &[&str], params: &[Param]) -> FdResult<Commands
     Ok(Commands::SetStartLabel(label))
 }
 
-fn dump_read_len_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+fn disas_read_len_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     let to: usize = auto_radix_usize(&get_arg_or(args, params, 0)?)?;
     Ok(Commands::SetReadLen(to))
 }
 
-fn dump_code_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+fn disas_code_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
-    Ok(Commands::DumpCode)
+    Ok(Commands::DisasCode)
 }
 
 fn read_file_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
@@ -326,7 +307,8 @@ fn read_file_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
 
     Ok(Commands::ReadFile(path))
 }
-fn dump_start_address_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
+
+fn disas_start_address_parser(args: &[&str], params: &[Param]) -> FdResult<Commands> {
     has_too_many_args(args, params)?;
     let address = auto_radix_address(&get_arg_or(args, params, 0)?)?;
 
