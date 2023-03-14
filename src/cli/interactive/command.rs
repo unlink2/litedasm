@@ -359,6 +359,18 @@ impl CommandContext {
         cfg: &Config,
     ) -> FdResult<()> {
         let cmd = self.actions.eval(input)?;
+        self.execute_cmd(f, dcb, &cmd, arch, ctx, cfg)
+    }
+
+    pub fn execute_cmd(
+        &mut self,
+        f: impl CommandCallback,
+        dcb: impl DisasCallback,
+        cmd: &Commands,
+        arch: &mut Archs,
+        ctx: &mut Context,
+        cfg: &Config,
+    ) -> FdResult<()> {
         cmd.execute(f, dcb, arch, ctx, self, cfg)?;
         Ok(())
     }
